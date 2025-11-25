@@ -121,6 +121,7 @@ app.post("/api/auth/login", async (req, res) => {
         id: user.id,
         username: user.username,
       },
+      users
     });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
