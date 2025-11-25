@@ -16,7 +16,7 @@ const users = [
     id: 1,
     username: 'demo',
     // password: 'demo123' (hashed)
-    password: '$2a$10$8ZqS5xvJDQjKqZ5YqX5rNO5xX5Y5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5u'
+    password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJkZW1vMSIsImlhdCI6MTc2NDA2MjU1OCwiZXhwIjoxNzY0MTQ4OTU4fQ.kzrjhb0kX5tzKqgY6ly3z9lotVdvXh4Xn5vm932EN6c'
   }
 ];
 
