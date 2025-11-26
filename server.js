@@ -121,6 +121,7 @@ app.post("/api/auth/login", async (req, res) => {
         username: user.username,
       },
       users,
+      date: new Date().toISOString(),
     });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
@@ -134,7 +135,7 @@ app.get("/api/auth/me", authenticateToken, (req, res) => {
       id: req.user.id,
       username: req.user.username,
     },
-    users,
+    date: new Date().toISOString(),
   });
 });
 
