@@ -14,17 +14,32 @@ jobs:
         cd ~/github/shared-tails-server
         git pull origin main
     
-    - name: Install dependencies with pnpm
+    - name: Install dependencies
       run: |
         cd ~/github/shared-tails-server
-        pnpm install
+        pnpm install --frozen-lockfile
+    
+    - name: Restart server
+      run: |
+        sudo systemctl restart shared-tails
+        sleep 3
+    
+    - name: Check server health
+      run: |
+        sudo systemctl is-active shared-tails
+        echo "✅ Server is running!"
     
     - name: Show deployment info
       run: |
         echo "✅ Deploy completed at $(date)"
         echo "📍 Repository: ~/github/shared-tails-server"
         cd ~/github/shared-tails-server
+        echo ""
         echo "📂 Latest commit:"
         git log -1 --oneline
-        echo "📦 Package manager: pnpm"
-        pnpm --version
+        echo ""
+        echo "🔄 Server status:"
+        sudo systemctl status shared-tails --no-pager -l
+        echo ""
+        echo "📋 Latest logs:"
+        sudo journalctl -u shared-tails -n 10 --no-pager
