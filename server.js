@@ -17,8 +17,7 @@ const users = [
     id: 1,
     username: "demo",
     // password: 'demo123' (hashed)
-    password:
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJkZW1vMSIsImlhdCI6MTc2NDA2MjU1OCwiZXhwIjoxNzY0MTQ4OTU4fQ.kzrjhb0kX5tzKqgY6ly3z9lotVdvXh4Xn5vm932EN6c",
+    password: "$2a$10$Ij.ki.0rObOONYMxGwmul.ahfXzwF2Rh7vdFNJvrZhj55P6rGMsaS",
   },
 ];
 
@@ -121,7 +120,7 @@ app.post("/api/auth/login", async (req, res) => {
         id: user.id,
         username: user.username,
       },
-      users
+      users,
     });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
