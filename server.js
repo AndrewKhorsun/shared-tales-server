@@ -120,7 +120,6 @@ app.post("/api/auth/login", async (req, res) => {
         id: user.id,
         username: user.username,
       },
-      users,
       date: new Date().toISOString(),
     });
   } catch (error) {
