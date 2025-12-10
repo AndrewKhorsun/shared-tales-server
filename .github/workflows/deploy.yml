@@ -3,6 +3,8 @@ name: Deploy to Server
 on:
   push:
     branches: [ main ]
+  repository_dispatch:
+    types: [dependency-updated]
 
 jobs:
   deploy:
