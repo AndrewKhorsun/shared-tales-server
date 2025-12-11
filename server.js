@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const db = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,23 +12,10 @@ const JWT_SECRET =
 // Middleware
 app.use(express.json());
 
-// In-memory storage (will be replaced with real DB in future)
-const users = [
-  {
-    id: 1,
-    username: "demo",
-    // password: 'demo123' (hashed)
-    password: "$2a$10$Ij.ki.0rObOONYMxGwmul.ahfXzwF2Rh7vdFNJvrZhj55P6rGMsaS",
-  },
-];
-
-const books = [];
-let bookIdCounter = 1;
-
 // === AUTHENTICATION MIDDLEWARE ===
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({ error: "Token not provided" });
@@ -56,8 +44,12 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = users.find((u) => u.username === username);
-    if (existingUser) {
+    const existingUser = await db.query(
+      "SELECT * FROM users WHERE username = $1",
+      [username]
+    );
+
+    if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: "User already exists" });
     }
 
@@ -65,13 +57,12 @@ app.post("/api/auth/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
-    const newUser = {
-      id: users.length + 1,
-      username,
-      password: hashedPassword,
-    };
+    const result = await db.query(
+      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username, created_at",
+      [username, hashedPassword]
+    );
 
-    users.push(newUser);
+    const newUser = result.rows[0];
 
     res.status(201).json({
       message: "User registered successfully",
@@ -79,6 +70,7 @@ app.post("/api/auth/register", async (req, res) => {
       username: newUser.username,
     });
   } catch (error) {
+    console.error("Register error:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -95,10 +87,15 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Find user
-    const user = users.find((u) => u.username === username);
-    if (!user) {
+    const result = await db.query("SELECT * FROM users WHERE username = $1", [
+      username,
+    ]);
+
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
+
+    const user = result.rows[0];
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -123,6 +120,7 @@ app.post("/api/auth/login", async (req, res) => {
       date: new Date().toISOString(),
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -141,96 +139,129 @@ app.get("/api/auth/me", authenticateToken, (req, res) => {
 // === BOOKS ROUTES (CRUD) ===
 
 // Get all books for current user
-app.get("/api/books", authenticateToken, (req, res) => {
-  const userBooks = books.filter((book) => book.authorId === req.user.id);
-  res.json({
-    books: userBooks,
-    total: userBooks.length,
-  });
+app.get("/api/books", authenticateToken, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM books WHERE author_id = $1 ORDER BY created_at DESC",
+      [req.user.id]
+    );
+
+    res.json({
+      books: result.rows,
+      total: result.rows.length,
+    });
+  } catch (error) {
+    console.error("Get books error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // Get specific book
-app.get("/api/books/:id", authenticateToken, (req, res) => {
-  const bookId = parseInt(req.params.id);
-  const book = books.find((b) => b.id === bookId && b.authorId === req.user.id);
+app.get("/api/books/:id", authenticateToken, async (req, res) => {
+  try {
+    const bookId = parseInt(req.params.id);
+    const result = await db.query(
+      "SELECT * FROM books WHERE id = $1 AND author_id = $2",
+      [bookId, req.user.id]
+    );
 
-  if (!book) {
-    return res.status(404).json({ error: "Book not found" });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Book not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Get book error:", error);
+    res.status(500).json({ error: "Server error" });
   }
-
-  res.json(book);
 });
 
 // Create new book
-app.post("/api/books", authenticateToken, (req, res) => {
-  const { title, description, content } = req.body;
+app.post("/api/books", authenticateToken, async (req, res) => {
+  try {
+    const { title, description, content } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ error: "Book title is required" });
+    if (!title) {
+      return res.status(400).json({ error: "Book title is required" });
+    }
+
+    const result = await db.query(
+      `INSERT INTO books (title, description, content, author_id, author_name) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING *`,
+      [title, description || "", content || "", req.user.id, req.user.username]
+    );
+
+    res.status(201).json({
+      message: "Book created successfully",
+      book: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Create book error:", error);
+    res.status(500).json({ error: "Server error" });
   }
-
-  const newBook = {
-    id: bookIdCounter++,
-    title,
-    description: description || "",
-    content: content || "",
-    authorId: req.user.id,
-    authorName: req.user.username,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  books.push(newBook);
-
-  res.status(201).json({
-    message: "Book created successfully",
-    book: newBook,
-  });
 });
 
 // Update book
-app.put("/api/books/:id", authenticateToken, (req, res) => {
-  const bookId = parseInt(req.params.id);
-  const bookIndex = books.findIndex(
-    (b) => b.id === bookId && b.authorId === req.user.id
-  );
+app.put("/api/books/:id", authenticateToken, async (req, res) => {
+  try {
+    const bookId = parseInt(req.params.id);
+    const { title, description, content } = req.body;
 
-  if (bookIndex === -1) {
-    return res.status(404).json({ error: "Book not found" });
+    // Check if book exists and belongs to user
+    const checkResult = await db.query(
+      "SELECT * FROM books WHERE id = $1 AND author_id = $2",
+      [bookId, req.user.id]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: "Book not found" });
+    }
+
+    // Update book
+    const result = await db.query(
+      `UPDATE books 
+       SET title = COALESCE($1, title),
+           description = COALESCE($2, description),
+           content = COALESCE($3, content),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4 AND author_id = $5
+       RETURNING *`,
+      [title, description, content, bookId, req.user.id]
+    );
+
+    res.json({
+      message: "Book updated successfully",
+      book: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Update book error:", error);
+    res.status(500).json({ error: "Server error" });
   }
-
-  const { title, description, content } = req.body;
-  const book = books[bookIndex];
-
-  // Update fields
-  if (title !== undefined) book.title = title;
-  if (description !== undefined) book.description = description;
-  if (content !== undefined) book.content = content;
-  book.updatedAt = new Date().toISOString();
-
-  res.json({
-    message: "Book updated successfully",
-    book,
-  });
 });
 
 // Delete book
-app.delete("/api/books/:id", authenticateToken, (req, res) => {
-  const bookId = parseInt(req.params.id);
-  const bookIndex = books.findIndex(
-    (b) => b.id === bookId && b.authorId === req.user.id
-  );
+app.delete("/api/books/:id", authenticateToken, async (req, res) => {
+  try {
+    const bookId = parseInt(req.params.id);
 
-  if (bookIndex === -1) {
-    return res.status(404).json({ error: "Book not found" });
+    const result = await db.query(
+      "DELETE FROM books WHERE id = $1 AND author_id = $2 RETURNING *",
+      [bookId, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Book not found" });
+    }
+
+    res.json({
+      message: "Book deleted successfully",
+      book: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Delete book error:", error);
+    res.status(500).json({ error: "Server error" });
   }
-
-  const deletedBook = books.splice(bookIndex, 1)[0];
-
-  res.json({
-    message: "Book deleted successfully",
-    book: deletedBook,
-  });
 });
 
 // === BASE ROUTES ===
@@ -238,7 +269,7 @@ app.delete("/api/books/:id", authenticateToken, (req, res) => {
 // Home page
 app.get("/", (req, res) => {
   res.json({
-    message: "Shared Tails API v1.0",
+    message: "Shared Tails API v2.0 - PostgreSQL Edition",
     endpoints: {
       auth: {
         register: "POST /api/auth/register",
@@ -253,7 +284,26 @@ app.get("/", (req, res) => {
         delete: "DELETE /api/books/:id (requires token)",
       },
     },
+    database: "PostgreSQL",
   });
+});
+
+// Health check
+app.get("/health", async (req, res) => {
+  try {
+    await db.query("SELECT 1");
+    res.json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      database: "disconnected",
+      error: error.message,
+    });
+  }
 });
 
 // 404 for unknown routes
@@ -262,9 +312,10 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📚 API documentation available at http://localhost:${PORT}/`);
+  console.log(`💾 Database: PostgreSQL`);
   console.log(
     `\n👤 Demo user credentials:\n   Username: demo\n   Password: demo123`
   );
