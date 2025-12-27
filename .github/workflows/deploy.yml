@@ -20,7 +20,15 @@ jobs:
       run: |
         cd ~/github/shared-tails-server
         pnpm install --frozen-lockfile
-    
+
+    - name: Build TypeScript
+      run: |
+        cd ~/github/shared-tails-server
+        pnpm run build
+        echo "✅ TypeScript build completed"
+        echo "📦 Built files:"
+        ls -lh dist/
+
     - name: Restart server
       run: |
         sudo systemctl restart shared-tails
