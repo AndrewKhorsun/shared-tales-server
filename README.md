@@ -12,7 +12,9 @@ Minimal backend server for collaborative book writing application. Built with No
 ## Tech Stack
 
 - Node.js
+- TypeScript
 - Express.js
+- PostgreSQL
 - JWT (JSON Web Tokens)
 - bcryptjs (password hashing)
 
@@ -21,6 +23,8 @@ Minimal backend server for collaborative book writing application. Built with No
 ### 1. Install Dependencies
 
 ```bash
+pnpm install
+# or
 npm install
 ```
 
@@ -39,15 +43,29 @@ PORT=3000
 JWT_SECRET=your-super-secret-key-here
 ```
 
-### 3. Start Server
+### 3. Build the Project
 
 ```bash
+pnpm run build
+# or
+npm run build
+```
+
+### 4. Start Server
+
+For production:
+
+```bash
+pnpm start
+# or
 npm start
 ```
 
-For development with auto-reload (Node 18+):
+For development with auto-reload:
 
 ```bash
+pnpm run dev
+# or
 npm run dev
 ```
 
@@ -58,6 +76,7 @@ Server will start at `http://localhost:3000`
 ### Authentication
 
 #### Register New User
+
 ```bash
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
@@ -65,6 +84,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 ```
 
 #### Login
+
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -72,6 +92,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 ```
 
 Response includes token:
+
 ```json
 {
   "message": "Login successful",
@@ -84,6 +105,7 @@ Response includes token:
 ```
 
 #### Get Current User Info
+
 ```bash
 curl http://localhost:3000/api/auth/me \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
@@ -92,17 +114,20 @@ curl http://localhost:3000/api/auth/me \
 ### Books (CRUD)
 
 All book endpoints require authentication. Include the token in Authorization header:
+
 ```
 Authorization: Bearer YOUR_TOKEN_HERE
 ```
 
 #### Get All User's Books
+
 ```bash
 curl http://localhost:3000/api/books \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 #### Create New Book
+
 ```bash
 curl -X POST http://localhost:3000/api/books \
   -H "Content-Type: application/json" \
@@ -115,12 +140,14 @@ curl -X POST http://localhost:3000/api/books \
 ```
 
 #### Get Specific Book
+
 ```bash
 curl http://localhost:3000/api/books/1 \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 #### Update Book
+
 ```bash
 curl -X PUT http://localhost:3000/api/books/1 \
   -H "Content-Type: application/json" \
@@ -132,6 +159,7 @@ curl -X PUT http://localhost:3000/api/books/1 \
 ```
 
 #### Delete Book
+
 ```bash
 curl -X DELETE http://localhost:3000/api/books/1 \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
@@ -142,6 +170,7 @@ curl -X DELETE http://localhost:3000/api/books/1 \
 ### Complete Test Scenario
 
 1. **Login with demo user:**
+
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -152,6 +181,7 @@ echo "Token: $TOKEN"
 ```
 
 2. **Create a book:**
+
 ```bash
 curl -X POST http://localhost:3000/api/books \
   -H "Content-Type: application/json" \
@@ -164,12 +194,14 @@ curl -X POST http://localhost:3000/api/books \
 ```
 
 3. **Get all books:**
+
 ```bash
 curl http://localhost:3000/api/books \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 4. **Update the book:**
+
 ```bash
 curl -X PUT http://localhost:3000/api/books/1 \
   -H "Content-Type: application/json" \
@@ -178,6 +210,7 @@ curl -X PUT http://localhost:3000/api/books/1 \
 ```
 
 5. **Delete the book:**
+
 ```bash
 curl -X DELETE http://localhost:3000/api/books/1 \
   -H "Authorization: Bearer $TOKEN"
@@ -186,6 +219,7 @@ curl -X DELETE http://localhost:3000/api/books/1 \
 ## Demo Credentials
 
 Pre-configured test user:
+
 - Username: `demo`
 - Password: `demo123`
 
@@ -193,9 +227,16 @@ Pre-configured test user:
 
 ```
 shared-tails/
-├── server.js           # Main server file with all routes
-├── package.json        # Dependencies and scripts
-├── .env.example        # Environment variables template
+├── server.ts           # Main server file with all routes
+├── db/
+│   └── index.ts       # Database connection pool
+├── types/
+│   ├── index.ts       # TypeScript type definitions
+│   └── bcryptjs.d.ts  # bcryptjs type declarations
+├── dist/              # Compiled JavaScript files (generated)
+├── tsconfig.json      # TypeScript configuration
+├── package.json       # Dependencies and scripts
+├── .env.example       # Environment variables template
 ├── .env               # Your local config (not in git)
 ├── .gitignore         # Git ignore rules
 └── README.md          # This file
@@ -207,6 +248,7 @@ shared-tails/
 
 ```bash
 # Make changes to code
+pnpm run build  # Build TypeScript to JavaScript
 git add .
 git commit -m "Add new feature"
 git push origin main
@@ -220,7 +262,10 @@ cd /path/to/shared-tails
 git pull origin main
 
 # Install dependencies (if package.json changed)
-npm install
+pnpm install
+
+# Build TypeScript
+pnpm run build
 
 # Restart server (using PM2 or systemd)
 pm2 restart shared-tails
@@ -228,9 +273,42 @@ pm2 restart shared-tails
 sudo systemctl restart shared-tails
 ```
 
+## TypeScript Development
+
+This project is written in TypeScript for better type safety and developer experience.
+
+### Available Scripts
+
+- `pnpm run build` - Compile TypeScript to JavaScript
+- `pnpm run dev` - Run development server with auto-reload (using tsx)
+- `pnpm run dev:node` - Run development server with ts-node
+- `pnpm start` - Run production server from compiled files
+- `pnpm run lint` - Check code with ESLint
+- `pnpm run lint:fix` - Fix ESLint errors automatically
+- `pnpm run format` - Format code with Prettier
+- `pnpm run typecheck` - Check TypeScript types without compilation
+- `pnpm run check` - Run all checks (typecheck + lint + format check)
+
+### Type Definitions
+
+All type definitions are located in the `types/` directory:
+
+- `types/index.ts` - Main application types (User, Book, Request types, etc.)
+- `types/bcryptjs.d.ts` - bcryptjs module type declarations
+
+### Code Quality
+
+The project uses strict TypeScript settings and ESLint/Prettier for code quality:
+
+- **No `any` types allowed** - all code must be fully typed
+- **Strict null checks** - all nullable values must be checked
+- **ESLint** - enforces code style and best practices
+- **Prettier** - automatic code formatting
+
 ## Next Steps
 
-- [ ] Add database integration (PostgreSQL/MongoDB)
+- [x] Add database integration (PostgreSQL)
+- [x] Migrate to TypeScript
 - [ ] Implement chapters as separate entities
 - [ ] Add collaborative editing features
 - [ ] Implement real-time updates (WebSocket)

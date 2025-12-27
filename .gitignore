@@ -21,6 +21,7 @@ pids/
 coverage/
 
 # IDEs
+.claude/
 .vscode/
 .idea/
 *.swp
