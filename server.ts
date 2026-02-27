@@ -308,7 +308,7 @@ app.delete("/api/books/:id", authenticateToken, async (req: AuthRequest, res: Re
 
 app.get("/", (_req: AuthRequest, res: Response) => {
   res.json({
-    message: "Shared Tails API v2.0 - PostgreSQL Edition",
+    message: "Shared Tails API v2.1 - PostgreSQL Edition",
     endpoints: {
       auth: {
         register: "POST /api/auth/register",
