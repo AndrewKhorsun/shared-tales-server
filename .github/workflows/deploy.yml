@@ -2,27 +2,23 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          cd /var/www/shared-tails
-          git pull origin main
-          source .env && bash db/migrate.sh
-          pnpm install --frozen-lockfile
-          pnpm run build
-          sudo systemctl restart shared-tails
-          sleep 3
-          sudo systemctl is-active shared-tails
-          echo "✅ Deploy completed at $(date)"
-          git log -1 --oneline
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/shared-tails
+            git pull origin main
+            source .env && bash db/migrate.sh
+            docker compose up -d --build
+            echo "✅ Deploy completed at $(date)"
+            git log -1 --oneline
