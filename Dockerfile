@@ -1,4 +1,5 @@
 FROM node:22-alpine
+RUN apk add --no-cache bash postgresql-client
 RUN npm install -g pnpm
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
