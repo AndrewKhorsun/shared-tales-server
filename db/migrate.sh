@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS migrations (
 );"
 
 # Check and apply each migration in order
-for file in $(ls /var/www/shared-tails/db/migrations/*.sql | sort); do
+SCRIPT_DIR=$(dirname "$0")
+for file in $(ls $SCRIPT_DIR/migrations/*.sql | sort); do
     filename=$(basename $file)
     
     # Check if the migration has already been applied
