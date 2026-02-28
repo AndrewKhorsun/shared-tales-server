@@ -18,6 +18,7 @@ jobs:
         script: |
           cd /var/www/shared-tails
           git pull origin main
+          source .env && bash db/migrate.sh
           pnpm install --frozen-lockfile
           pnpm run build
           sudo systemctl restart shared-tails
