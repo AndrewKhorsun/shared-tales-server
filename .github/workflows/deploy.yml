@@ -16,9 +16,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd /var/www/shared-tails
             git pull origin main
-            source .env && bash db/migrate.sh
             docker compose up -d --build
+            docker compose run --rm app bash db/migrate.sh
             echo "✅ Deploy completed at $(date)"
             git log -1 --oneline
