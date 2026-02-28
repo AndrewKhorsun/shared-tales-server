@@ -3,53 +3,25 @@ name: Deploy to Server
 on:
   push:
     branches: [ main ]
-  repository_dispatch:
-    types: [dependency-updated]
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     
     steps:
-    - name: Pull latest changes
-      run: |
-        cd ~/github/shared-tails-server
-        git pull origin main
-    
-    - name: Install dependencies
-      run: |
-        cd ~/github/shared-tails-server
-        pnpm install --frozen-lockfile
-
-    - name: Build TypeScript
-      run: |
-        cd ~/github/shared-tails-server
-        pnpm run build
-        echo "✅ TypeScript build completed"
-        echo "📦 Built files:"
-        ls -lh dist/
-
-    - name: Restart server
-      run: |
-        sudo systemctl restart shared-tails
-        sleep 3
-    
-    - name: Check server health
-      run: |
-        sudo systemctl is-active shared-tails
-        echo "✅ Server is running!"
-    
-    - name: Show deployment info
-      run: |
-        echo "✅ Deploy completed at $(date)"
-        echo "📍 Repository: ~/github/shared-tails-server"
-        cd ~/github/shared-tails-server
-        echo ""
-        echo "📂 Latest commit:"
-        git log -1 --oneline
-        echo ""
-        echo "🔄 Server status:"
-        sudo systemctl status shared-tails --no-pager -l
-        echo ""
-        echo "📋 Latest logs:"
-        sudo journalctl -u shared-tails -n 10 --no-pager
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /var/www/shared-tails
+          git pull origin main
+          pnpm install --frozen-lockfile
+          pnpm run build
+          sudo systemctl restart shared-tails
+          sleep 3
+          sudo systemctl is-active shared-tails
+          echo "✅ Deploy completed at $(date)"
+          git log -1 --oneline
