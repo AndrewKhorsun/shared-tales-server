@@ -41,6 +41,19 @@ export interface CreateBookRequestBody {
   content?: string;
 }
 
+export interface CreateChapterRequestBody {
+  title: string;
+  content?: string;
+  order_index?: number;
+}
+
+export interface UpdateChapterRequestBody {
+  title?: string;
+  content?: string;
+  order_index?: number;
+  status?: "draft" | "published";
+}
+
 export interface UpdateBookRequestBody {
   title?: string;
   description?: string;
