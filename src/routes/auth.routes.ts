@@ -1,20 +1,20 @@
-import { Router, Response } from "express";
+import { Router, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import * as bcrypt from "bcryptjs";
 import * as db from "../../db";
 import { AuthRequest, RegisterRequestBody, LoginRequestBody, User } from "../../types";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { config } from "../config";
+import { AppError } from "../middleware/error.middleware";
 
 const router: Router = Router();
 
-router.post("/register", async (req: AuthRequest, res: Response) => {
+router.post("/register", async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { username, password } = req.body as RegisterRequestBody;
 
     if (!username || !password) {
-      res.status(400).json({ error: "Username and password are required" });
-      return;
+      throw new AppError(400, "Username and password are required");
     }
 
     const existingUser = await db.query<User>("SELECT * FROM users WHERE username = $1", [
@@ -22,8 +22,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
     ]);
 
     if (existingUser.rows.length > 0) {
-      res.status(400).json({ error: "User already exists" });
-      return;
+      throw new AppError(400, "User already exists");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -36,8 +35,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
     const newUser = result.rows[0];
 
     if (!newUser) {
-      res.status(500).json({ error: "Failed to create user" });
-      return;
+      throw new AppError(500, "Failed to create user");
     }
 
     res.status(201).json({
@@ -46,38 +44,33 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       username: newUser.username,
     });
   } catch (error) {
-    console.error("Register error:", error);
-    res.status(500).json({ error: "Server error" });
+    next(error);
   }
 });
 
-router.post("/login", async (req: AuthRequest, res: Response) => {
+router.post("/login", async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { username, password } = req.body as LoginRequestBody;
 
     if (!username || !password) {
-      res.status(400).json({ error: "Username and password are required" });
-      return;
+      throw new AppError(400, "Username and password are required");
     }
 
     const result = await db.query<User>("SELECT * FROM users WHERE username = $1", [username]);
 
     if (result.rows.length === 0) {
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+      throw new AppError(401, "Invalid credentials");
     }
 
     const user = result.rows[0];
 
     if (!user) {
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+      throw new AppError(401, "Invalid credentials");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+      throw new AppError(401, "Invalid credentials");
     }
 
     const token = jwt.sign({ id: user.id, username: user.username }, config.jwt.secret, {
@@ -94,8 +87,7 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
       date: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Server error" });
+    next(error);
   }
 });
 

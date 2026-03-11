@@ -1,15 +1,15 @@
-import { Router, Response } from "express";
+import { Router, Response, NextFunction } from "express";
 import * as db from "../../db";
 import { AuthRequest, Book, CreateBookRequestBody, UpdateBookRequestBody } from "../../types";
 import { authenticateToken } from "../middleware/auth.middleware";
+import { AppError } from "../middleware/error.middleware";
 
 const router: Router = Router();
 
-router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.id) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+      throw new AppError(401, "Unauthorized");
     }
 
     const result = await db.query<Book>(
@@ -22,54 +22,51 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       total: result.rows.length,
     });
   } catch (error) {
-    console.error("Get books error:", error);
-    res.status(500).json({ error: "Server error" });
+    next(error);
   }
 });
 
-router.get("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?.id) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+router.get(
+  "/:id",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+
+      const bookIdParam = req.params.id;
+      if (!bookIdParam) {
+        throw new AppError(400, "Book ID is required");
+      }
+
+      const bookId = parseInt(bookIdParam);
+      const result = await db.query<Book>("SELECT * FROM books WHERE id = $1 AND author_id = $2", [
+        bookId,
+        req.user.id,
+      ]);
+
+      if (result.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      next(error);
     }
-
-    const bookIdParam = req.params.id;
-    if (!bookIdParam) {
-      res.status(400).json({ error: "Book ID is required" });
-      return;
-    }
-
-    const bookId = parseInt(bookIdParam);
-    const result = await db.query<Book>("SELECT * FROM books WHERE id = $1 AND author_id = $2", [
-      bookId,
-      req.user.id,
-    ]);
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ error: "Book not found" });
-      return;
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error("Get book error:", error);
-    res.status(500).json({ error: "Server error" });
   }
-});
+);
 
-router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post("/", authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.id || !req.user.username) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+      throw new AppError(401, "Unauthorized");
     }
 
     const { title, description, content } = req.body as CreateBookRequestBody;
 
     if (!title) {
-      res.status(400).json({ error: "Book title is required" });
-      return;
+      throw new AppError(400, "Book title is required");
     }
 
     const result = await db.query<Book>(
@@ -84,91 +81,90 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       book: result.rows[0],
     });
   } catch (error) {
-    console.error("Create book error:", error);
-    res.status(500).json({ error: "Server error" });
+    next(error);
   }
 });
 
-router.put("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?.id) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
+router.put(
+  "/:id",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
 
-    const bookIdParam = req.params.id;
-    if (!bookIdParam) {
-      res.status(400).json({ error: "Book ID is required" });
-      return;
-    }
+      const bookIdParam = req.params.id;
+      if (!bookIdParam) {
+        throw new AppError(400, "Book ID is required");
+      }
 
-    const bookId = parseInt(bookIdParam);
-    const { title, description, content } = req.body as UpdateBookRequestBody;
+      const bookId = parseInt(bookIdParam);
+      const { title, description, content } = req.body as UpdateBookRequestBody;
 
-    const checkResult = await db.query<Book>(
-      "SELECT * FROM books WHERE id = $1 AND author_id = $2",
-      [bookId, req.user.id]
-    );
+      const checkResult = await db.query<Book>(
+        "SELECT * FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
 
-    if (checkResult.rows.length === 0) {
-      res.status(404).json({ error: "Book not found" });
-      return;
-    }
+      if (checkResult.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
 
-    const result = await db.query<Book>(
-      `UPDATE books
+      const result = await db.query<Book>(
+        `UPDATE books
        SET title = COALESCE($1, title),
            description = COALESCE($2, description),
            content = COALESCE($3, content),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $4 AND author_id = $5
        RETURNING *`,
-      [title ?? null, description ?? null, content ?? null, bookId, req.user.id]
-    );
+        [title ?? null, description ?? null, content ?? null, bookId, req.user.id]
+      );
 
-    res.json({
-      message: "Book updated successfully",
-      book: result.rows[0],
-    });
-  } catch (error) {
-    console.error("Update book error:", error);
-    res.status(500).json({ error: "Server error" });
+      res.json({
+        message: "Book updated successfully",
+        book: result.rows[0],
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
-router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?.id) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+router.delete(
+  "/:id",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+
+      const bookIdParam = req.params.id;
+      if (!bookIdParam) {
+        throw new AppError(400, "Book ID is required");
+      }
+
+      const bookId = parseInt(bookIdParam);
+
+      const result = await db.query<Book>(
+        "DELETE FROM books WHERE id = $1 AND author_id = $2 RETURNING *",
+        [bookId, req.user.id]
+      );
+
+      if (result.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
+
+      res.json({
+        message: "Book deleted successfully",
+        book: result.rows[0],
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const bookIdParam = req.params.id;
-    if (!bookIdParam) {
-      res.status(400).json({ error: "Book ID is required" });
-      return;
-    }
-
-    const bookId = parseInt(bookIdParam);
-
-    const result = await db.query<Book>(
-      "DELETE FROM books WHERE id = $1 AND author_id = $2 RETURNING *",
-      [bookId, req.user.id]
-    );
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ error: "Book not found" });
-      return;
-    }
-
-    res.json({
-      message: "Book deleted successfully",
-      book: result.rows[0],
-    });
-  } catch (error) {
-    console.error("Delete book error:", error);
-    res.status(500).json({ error: "Server error" });
   }
-});
+);
 
 export default router;
