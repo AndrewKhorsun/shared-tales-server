@@ -2,7 +2,7 @@ import "dotenv/config";
 import express, { Response } from "express";
 import * as db from "./db";
 import { AuthRequest } from "./types";
-import { chaptersRouter, booksRouter, authRouter } from "./src/routes";
+import { chaptersRouter, booksRouter, authRouter, bookPlansRouter } from "./src/routes";
 import { config } from "./src/config";
 import { errorMiddleware } from "./src/middleware/error.middleware";
 
@@ -26,6 +26,7 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/books", booksRouter);
 app.use("/api/books/:bookId/chapters", chaptersRouter);
+app.use("/api/books/:bookId/plan", bookPlansRouter);
 
 app.get("/", (_req: AuthRequest, res: Response) => {
   res.json({
