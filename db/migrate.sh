@@ -2,6 +2,10 @@
 
 set -e
 
+if [ -f "../.env" ]; then
+  export $(grep -v '^#' ../.env | xargs)
+fi
+
 echo "=== Running migrations ==="
 
 DB_HOST=${DB_HOST:-localhost}

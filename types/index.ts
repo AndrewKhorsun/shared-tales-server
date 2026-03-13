@@ -18,6 +18,17 @@ export interface Book {
   updated_at: Date;
 }
 
+export interface BookPlan {
+  id: number;
+  book_id: number;
+  genre: string;
+  target_audience: string;
+  writing_style: string;
+  generation_settings: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface AuthRequest extends Request {
   user?: {
     id: number;
