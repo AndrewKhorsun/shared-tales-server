@@ -14,7 +14,7 @@ export const errorMiddleware = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   console.error(`[${req.method}] ${req.path}`, err.message);
 
