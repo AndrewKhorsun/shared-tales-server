@@ -54,12 +54,6 @@ export interface UpdateChapterRequestBody {
   status?: "draft" | "published";
 }
 
-export interface UpdateBookRequestBody {
-  title?: string;
-  description?: string;
-  content?: string;
-}
-
 export interface JWTPayload {
   id: number;
   username: string;

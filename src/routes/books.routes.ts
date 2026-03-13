@@ -1,8 +1,15 @@
 import { Router, Response, NextFunction } from "express";
 import * as db from "../../db";
-import { AuthRequest, Book, CreateBookRequestBody, UpdateBookRequestBody } from "../../types";
+import { AuthRequest, Book } from "../../types";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { AppError } from "../middleware/error.middleware";
+import { validate } from "../middleware/validate.middleware";
+import {
+  CreateBookDto,
+  createBookSchema,
+  UpdateBookDto,
+  updateBookSchema,
+} from "../validators/book.validators";
 
 const router: Router = Router();
 
@@ -57,37 +64,39 @@ router.get(
   }
 );
 
-router.post("/", authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.user?.id || !req.user.username) {
-      throw new AppError(401, "Unauthorized");
-    }
+router.post(
+  "/",
+  authenticateToken,
+  validate(createBookSchema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id || !req.user.username) {
+        throw new AppError(401, "Unauthorized");
+      }
 
-    const { title, description, content } = req.body as CreateBookRequestBody;
+      const { title, description, content } = req.body as CreateBookDto;
 
-    if (!title) {
-      throw new AppError(400, "Book title is required");
-    }
-
-    const result = await db.query<Book>(
-      `INSERT INTO books (title, description, content, author_id, author_name)
+      const result = await db.query<Book>(
+        `INSERT INTO books (title, description, content, author_id, author_name)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [title, description || "", content || "", req.user.id, req.user.username]
-    );
+        [title, description || "", content || "", req.user.id, req.user.username]
+      );
 
-    res.status(201).json({
-      message: "Book created successfully",
-      book: result.rows[0],
-    });
-  } catch (error) {
-    next(error);
+      res.status(201).json({
+        message: "Book created successfully",
+        book: result.rows[0],
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 router.put(
   "/:id",
   authenticateToken,
+  validate(updateBookSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.id) {
@@ -100,7 +109,7 @@ router.put(
       }
 
       const bookId = parseInt(bookIdParam);
-      const { title, description, content } = req.body as UpdateBookRequestBody;
+      const { title, description, content } = req.body as UpdateBookDto;
 
       const checkResult = await db.query<Book>(
         "SELECT * FROM books WHERE id = $1 AND author_id = $2",

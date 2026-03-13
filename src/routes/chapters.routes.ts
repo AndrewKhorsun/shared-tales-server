@@ -1,8 +1,15 @@
 import { Router, Response, NextFunction } from "express";
 import { authenticateToken } from "../middleware/auth.middleware";
 import * as db from "../../db";
-import { AuthRequest, Book, CreateChapterRequestBody, UpdateChapterRequestBody } from "../../types";
+import { AuthRequest, Book } from "../../types";
 import { AppError } from "../middleware/error.middleware";
+import {
+  CreateChapterDto,
+  createChapterSchema,
+  UpdateChapterDto,
+  updateChapterSchema,
+} from "../validators/chapter.validator";
+import { validate } from "../middleware/validate.middleware";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -88,52 +95,54 @@ router.get(
   }
 );
 
-router.post("/", authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.user?.id || !req.user.username) {
-      throw new AppError(401, "Unauthorized");
-    }
+router.post(
+  "/",
+  authenticateToken,
+  validate(createChapterSchema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id || !req.user.username) {
+        throw new AppError(401, "Unauthorized");
+      }
 
-    const bookIdParam = req.params.bookId;
-    if (!bookIdParam) {
-      throw new AppError(400, "Book ID is required");
-    }
-    const bookId = parseInt(bookIdParam);
+      const bookIdParam = req.params.bookId;
+      if (!bookIdParam) {
+        throw new AppError(400, "Book ID is required");
+      }
+      const bookId = parseInt(bookIdParam);
 
-    const { title, content, order_index } = req.body as CreateChapterRequestBody;
+      const { title, content, order_index } = req.body as CreateChapterDto;
 
-    if (!title) {
-      throw new AppError(400, "Chapter title is required");
-    }
+      const bookCheck = await db.query<Book>(
+        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
 
-    const bookCheck = await db.query<Book>(
-      "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-      [bookId, req.user.id]
-    );
+      if (bookCheck.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
 
-    if (bookCheck.rows.length === 0) {
-      throw new AppError(404, "Book not found");
-    }
-
-    const result = await db.query<Book>(
-      `INSERT INTO chapters (title, content,order_index,book_id)
+      const result = await db.query<Book>(
+        `INSERT INTO chapters (title, content,order_index,book_id)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [title, content ?? "", order_index ?? 0, bookId]
-    );
+        [title, content ?? "", order_index ?? 0, bookId]
+      );
 
-    res.status(201).json({
-      message: "Chapter created successfully",
-      chapter: result.rows[0],
-    });
-  } catch (error) {
-    next(error);
+      res.status(201).json({
+        message: "Chapter created successfully",
+        chapter: result.rows[0],
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 router.put(
   "/:chapterId",
   authenticateToken,
+  validate(updateChapterSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.id) {
@@ -157,7 +166,7 @@ router.put(
         throw new AppError(404, "Book not found");
       }
 
-      const { title, content, order_index, status } = req.body as UpdateChapterRequestBody;
+      const { title, content, order_index, status } = req.body as UpdateChapterDto;
 
       const result = await db.query(
         `UPDATE chapters
