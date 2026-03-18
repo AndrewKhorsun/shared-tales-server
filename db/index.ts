@@ -1,20 +1,21 @@
 import { Pool, QueryResult, QueryResultRow } from "pg";
+import { config } from "../src/config";
 
 const pool = new Pool({
-  host: process.env.DB_HOST || "localhost",
-  port: parseInt(process.env.DB_PORT || "5432"),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  host: config.db.host,
+  port: config.db.port,
+  database: config.db.name,
+  user: config.db.user,
+  password: config.db.password,
   max: 20,
   connectionTimeoutMillis: 2000,
 });
 
 pool.on("connect", () => {
   console.log("✅ Connected to PostgreSQL database");
-  console.log(`   Host: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
-  console.log(`   Database: ${process.env.DB_NAME}`);
-  console.log(`   User: ${process.env.DB_USER}`);
+  console.log(`   Host: ${config.db.host}:${config.db.port}`);
+  console.log(`   Database: ${config.db.name}`);
+  console.log(`   User: ${config.db.user}`);
 });
 
 pool.on("error", (err) => {

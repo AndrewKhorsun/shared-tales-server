@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express, { Response } from "express";
 import * as db from "./db";
 import { AuthRequest } from "./types";
