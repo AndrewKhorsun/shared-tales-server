@@ -62,5 +62,58 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
   };
 }
 
-// export async function sendFeedback(...) { }
-// export async function getChapterState(...) { }
+export async function sendFeedback(
+  bookId: number,
+  chapterId: number,
+  isApprove: boolean,
+  feedback?: string
+) {
+  const threadId = `book-${bookId}-chapter-${chapterId}`;
+
+  const result = await chapterGraph.invoke(
+    { plan_approved: isApprove, user_feedback: feedback ?? null },
+    { configurable: { thread_id: threadId } }
+  );
+
+  const state = (await chapterGraph.getState({ configurable: { thread_id: threadId } })).next
+    .length;
+
+  if (state === 0) {
+    await db.query("UPDATE chapters SET content = $1 WHERE id = $2", [result.draft, chapterId]);
+
+    await db.query(
+      `UPDATE book_plans
+   SET generation_settings = jsonb_set(
+     generation_settings,
+     '{chapter_summaries}',
+     generation_settings->'chapter_summaries' || $1::jsonb
+   )
+   WHERE book_id = $2`,
+      [
+        JSON.stringify([{ chapter: result.chapter_number, summary: result.chapter_summary }]),
+        bookId,
+      ]
+    );
+
+    return {
+      status: "done",
+      chapter: result.draft,
+    };
+  } else {
+    return {
+      status: "waiting_approval",
+      plan: result.plan,
+    };
+  }
+}
+export async function getChapterState(bookId: number, chapterId: number) {
+  const threadId = `book-${bookId}-chapter-${chapterId}`;
+
+  const { values, next } = await chapterGraph.getState({ configurable: { thread_id: threadId } });
+
+  return {
+    status: next.length === 0 ? "done" : "waiting_approval",
+    plan: values.plan,
+    draft: values.draft,
+  };
+}
