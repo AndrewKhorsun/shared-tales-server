@@ -52,17 +52,33 @@ export interface CreateBookRequestBody {
   content?: string;
 }
 
+export interface Chapter {
+  id: number;
+  book_id: number;
+  title: string;
+  content: string;
+  order_index: number;
+  status: "draft" | "published" | "archived";
+  plan: string;
+  agent_state: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface CreateChapterRequestBody {
   title: string;
   content?: string;
   order_index?: number;
+  plan?: string;
 }
 
 export interface UpdateChapterRequestBody {
   title?: string;
   content?: string;
   order_index?: number;
-  status?: "draft" | "published";
+  status?: "draft" | "published" | "archived";
+  plan?: string;
+  agent_state?: Record<string, unknown>;
 }
 
 export interface JWTPayload {
