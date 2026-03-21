@@ -1,4 +1,4 @@
-# Shared Tails - Collaborative Writing Server
+# Shared Tales - Collaborative Writing Server
 
 Minimal backend server for collaborative book writing application. Built with Node.js and Express.
 
