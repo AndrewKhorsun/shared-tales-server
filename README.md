@@ -1,22 +1,41 @@
-# Shared Tales - Collaborative Writing Server
+# Shared Tales — Backend API
 
-Minimal backend server for collaborative book writing application. Built with Node.js and Express.
-
-## Features
-
-- JWT-based authentication (register/login)
-- CRUD operations for books
-- User-specific content management
-- In-memory storage (ready for DB migration)
+Backend for a collaborative AI-powered book writing application. Built with Express + TypeScript + LangGraph (Anthropic Claude).
 
 ## Tech Stack
 
-- Node.js
-- TypeScript
-- Express.js
-- PostgreSQL
-- JWT (JSON Web Tokens)
-- bcryptjs (password hashing)
+| Layer | Technology |
+|-------|-----------|
+| HTTP | Express 4, TypeScript 5 |
+| AI Agents | LangGraph, @langchain/anthropic (Claude) |
+| Database | PostgreSQL (raw `pg`) |
+| Authentication | JWT + bcryptjs |
+| Validation | Zod |
+| Dev tools | tsx, ESLint, Prettier |
+
+## Project Structure
+
+```
+backend/
+├── server.ts                        # Express app entry point
+├── db/
+│   ├── index.ts                     # PostgreSQL connection pool
+│   └── migrations/                  # SQL migration files (7 files)
+├── src/
+│   ├── agents/
+│   │   ├── shared-tales/
+│   │   │   ├── state.ts             # LangGraph state definitions
+│   │   │   ├── graph.ts             # Workflow graph
+│   │   │   ├── index.ts             # Public agent API
+│   │   │   ├── utils.ts
+│   │   │   └── nodes/               # planner, writer, editor, summarizer
+│   │   └── checkpointer.ts          # PostgreSQL-backed state persistence
+│   ├── routes/                      # Express route handlers
+│   ├── middleware/                  # auth, error, validate
+│   ├── validators/                  # Zod schemas (DTOs)
+│   └── config.ts
+└── types/                           # TypeScript type definitions
+```
 
 ## Quick Start
 
@@ -24,58 +43,66 @@ Minimal backend server for collaborative book writing application. Built with No
 
 ```bash
 pnpm install
-# or
-npm install
 ```
 
-### 2. Configure Environment (Optional)
-
-Create a `.env` file:
+### 2. Environment Variables
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` to set your own JWT secret:
+Fill in `.env`:
 
-```
+```env
 PORT=3000
-JWT_SECRET=your-super-secret-key-here
+JWT_SECRET=your-super-secret-key
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=shared_tales
+DB_USER=postgres
+DB_PASSWORD=your-password
+
+ANTROPICT_API_KEY=your-anthropic-key
 ```
 
-### 3. Build the Project
+### 3. Start
 
 ```bash
-pnpm run build
-# or
-npm run build
-```
-
-### 4. Start Server
-
-For production:
-
-```bash
-pnpm start
-# or
-npm start
-```
-
-For development with auto-reload:
-
-```bash
+# Development (auto-reload)
 pnpm run dev
-# or
-npm run dev
+
+# Production
+pnpm run build && pnpm start
 ```
 
-Server will start at `http://localhost:3000`
+Server starts at `http://localhost:3000`
+
+---
 
 ## API Endpoints
 
-### Authentication
+### Health Check
 
-#### Register New User
+```bash
+GET /health
+```
+
+```json
+{ "status": "ok", "database": "connected", "timestamp": "..." }
+```
+
+---
+
+### Auth
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login, returns JWT |
+| GET | `/api/auth/me` | Current user info (🔒) |
+
+#### Register
 
 ```bash
 curl -X POST http://localhost:3000/api/auth/register \
@@ -88,232 +115,194 @@ curl -X POST http://localhost:3000/api/auth/register \
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "demo", "password": "demo123"}'
+  -d '{"username": "john", "password": "pass123"}'
 ```
-
-Response includes token:
 
 ```json
 {
   "message": "Login successful",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "username": "demo"
-  }
+  "token": "eyJhbGci...",
+  "user": { "id": 1, "username": "john" }
 }
 ```
 
-#### Get Current User Info
-
-```bash
-curl http://localhost:3000/api/auth/me \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+All protected endpoints require:
+```
+Authorization: Bearer YOUR_TOKEN
 ```
 
-### Books (CRUD)
+---
 
-All book endpoints require authentication. Include the token in Authorization header:
+### Books (🔒 requires token)
 
-```
-Authorization: Bearer YOUR_TOKEN_HERE
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/books` | Get all user books |
+| GET | `/api/books/:id` | Get single book |
+| POST | `/api/books` | Create book |
+| PUT | `/api/books/:id` | Update book |
+| DELETE | `/api/books/:id` | Delete book |
 
-#### Get All User's Books
-
-```bash
-curl http://localhost:3000/api/books \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-#### Create New Book
+#### Create Book
 
 ```bash
 curl -X POST http://localhost:3000/api/books \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "title": "My First Book",
-    "description": "A story about adventures",
-    "content": "Chapter 1: The Beginning..."
+    "description": "A story about adventures"
   }'
 ```
 
-#### Get Specific Book
+---
+
+### Chapters (🔒 requires token)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/books/:bookId/chapters` | Get all chapters |
+| GET | `/api/books/:bookId/chapters/:id` | Get single chapter |
+| POST | `/api/books/:bookId/chapters` | Create chapter |
+| PUT | `/api/books/:bookId/chapters/:id` | Update chapter |
+| DELETE | `/api/books/:bookId/chapters/:id` | Delete chapter |
+
+#### Create Chapter
 
 ```bash
-curl http://localhost:3000/api/books/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-#### Update Book
-
-```bash
-curl -X PUT http://localhost:3000/api/books/1 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -d '{
-    "title": "Updated Title",
-    "content": "New content here..."
-  }'
-```
-
-#### Delete Book
-
-```bash
-curl -X DELETE http://localhost:3000/api/books/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-## Testing Workflow
-
-### Complete Test Scenario
-
-1. **Login with demo user:**
-
-```bash
-TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"demo","password":"demo123"}' \
-  | grep -o '"token":"[^"]*' | cut -d'"' -f4)
-
-echo "Token: $TOKEN"
-```
-
-2. **Create a book:**
-
-```bash
-curl -X POST http://localhost:3000/api/books \
+curl -X POST http://localhost:3000/api/books/1/chapters \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "title": "The Adventure Begins",
-    "description": "An epic tale",
-    "content": "It was a dark and stormy night..."
+    "title": "Chapter 1: The Beginning",
+    "order_index": 1
   }'
 ```
 
-3. **Get all books:**
+---
+
+### Book Plans (🔒 requires token)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/books/:bookId/plan` | Get book plan |
+| POST | `/api/books/:bookId/plan` | Create plan |
+| PUT | `/api/books/:bookId/plan` | Update plan |
+| DELETE | `/api/books/:bookId/plan` | Delete plan |
+
+#### Create Book Plan
 
 ```bash
-curl http://localhost:3000/api/books \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-4. **Update the book:**
-
-```bash
-curl -X PUT http://localhost:3000/api/books/1 \
+curl -X POST http://localhost:3000/api/books/1/plan \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"content": "It was a bright and sunny morning..."}'
+  -d '{
+    "genre": "fantasy",
+    "target_audience": "adults",
+    "writing_style": "epic",
+    "language": "English",
+    "generation_settings": {
+      "characters": [
+        { "name": "Aria", "role": "protagonist", "description": "A young mage", "traits": ["brave", "curious"] }
+      ],
+      "setting": {
+        "world": "Medieval fantasy kingdom",
+        "atmosphere": "Dark and mysterious"
+      },
+      "plot_arc": {
+        "premise": "A young mage discovers an ancient prophecy",
+        "conflict": "Dark forces seek to destroy the kingdom",
+        "resolution": "Hero unites the factions to defeat evil"
+      }
+    }
+  }'
 ```
 
-5. **Delete the book:**
+---
+
+## AI Agents — LangGraph
+
+### Architecture
+
+Chapter generation is implemented as a LangGraph state machine:
+
+```
+START → planner → writer → editor ↻ (up to 3 attempts)
+                              ↓
+                          summarizer → END
+```
+
+| Node | Model | Role |
+|------|-------|------|
+| planner | Claude Haiku | Creates chapter plan, waits for user approval |
+| writer | Claude Haiku | Writes chapter text (1000–1500 words) |
+| editor | Claude Haiku | Reviews quality, approves or sends back for revision |
+| summarizer | Claude Haiku | Creates a brief summary for context in future chapters |
+
+### Checkpointing
+
+State is persisted in PostgreSQL. Thread ID format: `book-{bookId}-chapter-{chapterId}`.
+This allows pausing and resuming generation between requests.
+
+### Public API (`src/agents/shared-tales/index.ts`)
+
+```typescript
+runChapterGeneration(bookId, chapterId, hint?)     // start generation
+sendFeedback(bookId, chapterId, isApprove, text?)  // approve/reject plan
+getChapterState(bookId, chapterId)                 // get current state
+```
+
+---
+
+## Scripts
 
 ```bash
-curl -X DELETE http://localhost:3000/api/books/1 \
-  -H "Authorization: Bearer $TOKEN"
+pnpm run dev        # Development with auto-reload
+pnpm run build      # Compile TypeScript
+pnpm start          # Start production server
+pnpm run typecheck  # Type check without compilation
+pnpm run lint       # Run ESLint
+pnpm run lint:fix   # Auto-fix ESLint errors
+pnpm run format     # Format with Prettier
+pnpm run check      # typecheck + lint + format check
 ```
 
-## Demo Credentials
+---
 
-Pre-configured test user:
-
-- Username: `demo`
-- Password: `demo123`
-
-## Project Structure
-
-```
-shared-tales/
-├── server.ts           # Main server file with all routes
-├── db/
-│   └── index.ts       # Database connection pool
-├── types/
-│   ├── index.ts       # TypeScript type definitions
-│   └── bcryptjs.d.ts  # bcryptjs type declarations
-├── dist/              # Compiled JavaScript files (generated)
-├── tsconfig.json      # TypeScript configuration
-├── package.json       # Dependencies and scripts
-├── .env.example       # Environment variables template
-├── .env               # Your local config (not in git)
-├── .gitignore         # Git ignore rules
-└── README.md          # This file
-```
-
-## Deployment Workflow
-
-### 1. On Development Machine
+## Deployment
 
 ```bash
-# Make changes to code
-pnpm run build  # Build TypeScript to JavaScript
-git add .
-git commit -m "Add new feature"
-git push origin main
-```
-
-### 2. On Ubuntu Server
-
-```bash
-# Pull latest changes
-cd /path/to/shared-tales
+# On server
 git pull origin main
-
-# Install dependencies (if package.json changed)
 pnpm install
-
-# Build TypeScript
 pnpm run build
-
-# Restart server (using PM2 or systemd)
 pm2 restart shared-tales
-# or
-sudo systemctl restart shared-tales
 ```
 
-## TypeScript Development
+---
 
-This project is written in TypeScript for better type safety and developer experience.
+## Architecture & Improvements
 
-### Available Scripts
+Detailed architecture analysis, identified issues, and refactoring plan with real code examples:
 
-- `pnpm run build` - Compile TypeScript to JavaScript
-- `pnpm run dev` - Run development server with auto-reload (using tsx)
-- `pnpm run dev:node` - Run development server with ts-node
-- `pnpm start` - Run production server from compiled files
-- `pnpm run lint` - Check code with ESLint
-- `pnpm run lint:fix` - Fix ESLint errors automatically
-- `pnpm run format` - Format code with Prettier
-- `pnpm run typecheck` - Check TypeScript types without compilation
-- `pnpm run check` - Run all checks (typecheck + lint + format check)
+**[ARCHITECTURE.md](./ARCHITECTURE.md)**
 
-### Type Definitions
+---
 
-All type definitions are located in the `types/` directory:
+## Roadmap
 
-- `types/index.ts` - Main application types (User, Book, Request types, etc.)
-- `types/bcryptjs.d.ts` - bcryptjs module type declarations
-
-### Code Quality
-
-The project uses strict TypeScript settings and ESLint/Prettier for code quality:
-
-- **No `any` types allowed** - all code must be fully typed
-- **Strict null checks** - all nullable values must be checked
-- **ESLint** - enforces code style and best practices
-- **Prettier** - automatic code formatting
-
-## Next Steps
-
-- [x] Add database integration (PostgreSQL)
-- [x] Migrate to TypeScript
-- [ ] Implement chapters as separate entities
-- [ ] Add collaborative editing features
-- [ ] Implement real-time updates (WebSocket)
-- [ ] Add user roles and permissions
-- [ ] Implement book sharing functionality
+- [x] PostgreSQL integration
+- [x] TypeScript strict mode
+- [x] JWT authentication
+- [x] CRUD for books and chapters
+- [x] LangGraph AI agents for chapter generation
+- [x] PostgreSQL checkpointing for agents
+- [ ] Service Layer (see ARCHITECTURE.md)
+- [ ] Repository Layer (see ARCHITECTURE.md)
+- [ ] Structured logging (Pino)
+- [ ] Rate limiting
+- [ ] Tests (Jest + Supertest)
+- [ ] Agent response streaming (SSE)
 
 ## License
 
