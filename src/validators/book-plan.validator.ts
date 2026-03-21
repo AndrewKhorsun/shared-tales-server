@@ -70,4 +70,5 @@ export const updateBookPlanSchema = createBookPlanSchema;
 export type CreateBookPlanDto = z.infer<typeof createBookPlanSchema>;
 export type UpdateBookPlanDto = z.infer<typeof updateBookPlanSchema>;
 export type GenerationSettings = z.infer<typeof generationSettingsSchema>;
+export type BookLanguage = z.infer<typeof createBookPlanSchema>["language"];
 export type Character = z.infer<typeof characterSchema>;

@@ -1,7 +1,7 @@
 import { Router, Response, NextFunction } from "express";
 import { authenticateToken } from "../middleware/auth.middleware";
 import * as db from "../../db";
-import { AuthRequest, Book } from "../../types";
+import { AuthRequest, Book, Chapter } from "../../types";
 import { AppError } from "../middleware/error.middleware";
 import {
   CreateChapterDto,
@@ -76,7 +76,7 @@ router.get(
         throw new AppError(404, "Book not found");
       }
 
-      const result = await db.query(
+      const result = await db.query<Chapter>(
         `SELECT * FROM chapters
          WHERE book_id = $1 AND id = $2`,
         [bookId, chapterId]
