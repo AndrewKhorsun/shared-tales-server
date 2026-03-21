@@ -1,7 +1,7 @@
 import { StateGraph, START, END, interrupt } from "@langchain/langgraph";
 import { Annotation } from "@langchain/langgraph";
 import { ChatAnthropic } from "@langchain/anthropic";
-import { MemorySaver } from "@langchain/langgraph";
+import { checkpointer, setupCheckpointer } from "./checkpointer";
 import { config } from "../config";
 
 const llm = new ChatAnthropic({
@@ -123,7 +123,6 @@ function routerFunction(state: typeof BookState.State): "end" | "planner" {
   console.log("    -> Draft rejected. Going back to planner (attempt " + state.attempts + "/3)...");
   return "planner";
 }
-const memory = new MemorySaver();
 
 const graph = new StateGraph(BookState)
   .addNode("planner", plannerNode)
@@ -140,39 +139,31 @@ const graph = new StateGraph(BookState)
     end: END,
   })
   .compile({
-    checkpointer: memory,
+    checkpointer,
   });
 
 async function main() {
-  console.log("=== Draft Creation Pipeline Started ===\n");
+  await setupCheckpointer();
 
-  // 1. Generate initial plan
-  await graph.invoke({}, { configurable: { thread_id: "session-001" } });
+  const threadId = "session-005"; // тот же thread_id!
 
-  // 2. User sends feedback (simulation)
-  console.log("\n--- [User Action] Sending feedback: 'Add more conflict' ---");
-  await graph.invoke(
-    {
-      planApproved: false,
-      userFeedback: "Add more conflict",
-    },
-    { configurable: { thread_id: "session-001" } }
-  );
+  console.log("=== Run 2: Continuing from checkpoint ===");
 
-  // 3. User approves plan (simulation)
-  console.log("\n--- [User Action] Approving plan ---");
-  await graph.invoke({ planApproved: true }, { configurable: { thread_id: "session-001" } });
-
-  // Final summary
-  const finalState = await graph.getState({
-    configurable: { thread_id: "session-001" },
+  const stateBefore = await graph.getState({
+    configurable: { thread_id: threadId },
   });
 
-  console.log("\n=== Pipeline Complete ===");
-  console.log("  Plan: " + (finalState.values.plan ? "yes" : "no"));
-  console.log("  Draft: " + (finalState.values.draft ? "yes" : "no"));
-  console.log("  Approved: " + finalState.values.approved);
-  console.log("  Total attempts: " + finalState.values.attempts);
+  console.log("Resuming from:", stateBefore.next);
+
+  await graph.invoke({ planApproved: true }, { configurable: { thread_id: threadId } });
+
+  const stateAfter = await graph.getState({
+    configurable: { thread_id: threadId },
+  });
+
+  console.log("Has plan:", !!stateAfter.values.plan);
+  console.log("Has draft:", !!stateAfter.values.draft);
+  console.log("Approved:", stateAfter.values.approved);
 }
 
 main();

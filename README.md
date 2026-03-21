@@ -226,7 +226,7 @@ Pre-configured test user:
 ## Project Structure
 
 ```
-shared-tails/
+shared-tales/
 ├── server.ts           # Main server file with all routes
 ├── db/
 │   └── index.ts       # Database connection pool
@@ -258,7 +258,7 @@ git push origin main
 
 ```bash
 # Pull latest changes
-cd /path/to/shared-tails
+cd /path/to/shared-tales
 git pull origin main
 
 # Install dependencies (if package.json changed)
@@ -268,9 +268,9 @@ pnpm install
 pnpm run build
 
 # Restart server (using PM2 or systemd)
-pm2 restart shared-tails
+pm2 restart shared-tales
 # or
-sudo systemctl restart shared-tails
+sudo systemctl restart shared-tales
 ```
 
 ## TypeScript Development
