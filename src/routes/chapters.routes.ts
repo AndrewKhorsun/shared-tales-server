@@ -10,6 +10,11 @@ import {
   updateChapterSchema,
 } from "../validators/chapter.validator";
 import { validate } from "../middleware/validate.middleware";
+import { runChapterGeneration, sendFeedback, getChapterState } from "../agents/shared-tales";
+import {
+  ChapterFeedbackDto,
+  chapterFeedbackSchema,
+} from "../validators/chapter-generation.validator";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -233,6 +238,115 @@ router.delete(
         message: "Chapter deleted successfully",
         chapter: result.rows[0],
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/:chapterId/generate",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+
+      const { bookId: bookIdParam, chapterId: chapterIdParam } = req.params;
+      if (!bookIdParam || !chapterIdParam) {
+        throw new AppError(400, "Book ID and Chapter ID are required");
+      }
+      const bookId = parseInt(bookIdParam);
+      const chapterId = parseInt(chapterIdParam);
+
+      const bookCheck = await db.query<Book>(
+        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
+      if (bookCheck.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
+
+      const hint: string | undefined = req.body?.hint;
+
+      const result = await runChapterGeneration(bookId, chapterId, hint);
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/:chapterId/feedback",
+  authenticateToken,
+  validate(chapterFeedbackSchema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+
+      const { bookId: bookIdParam, chapterId: chapterIdParam } = req.params;
+      if (!bookIdParam || !chapterIdParam) {
+        throw new AppError(400, "Book ID and Chapter ID are required");
+      }
+      const bookId = parseInt(bookIdParam);
+      const chapterId = parseInt(chapterIdParam);
+
+      const bookCheck = await db.query<Book>(
+        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
+      if (bookCheck.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
+
+      const body = req.body as ChapterFeedbackDto;
+
+      const result = await sendFeedback(
+        bookId,
+        chapterId,
+        body.approved,
+        body.approved === false ? body.feedback : undefined
+      );
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  "/:chapterId/state",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+
+      const { bookId: bookIdParam, chapterId: chapterIdParam } = req.params;
+      if (!bookIdParam || !chapterIdParam) {
+        throw new AppError(400, "Book ID and Chapter ID are required");
+      }
+      const bookId = parseInt(bookIdParam);
+      const chapterId = parseInt(chapterIdParam);
+
+      const bookCheck = await db.query<Book>(
+        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
+      if (bookCheck.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
+
+      const result = await getChapterState(bookId, chapterId);
+
+      res.json(result);
     } catch (error) {
       next(error);
     }

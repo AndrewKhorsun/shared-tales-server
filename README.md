@@ -63,7 +63,7 @@ DB_NAME=shared_tales
 DB_USER=postgres
 DB_PASSWORD=your-password
 
-ANTROPICT_API_KEY=your-anthropic-key
+ANTHROPICT_API_KEY=your-anthropic-key
 ```
 
 ### 3. Start
@@ -167,6 +167,14 @@ curl -X POST http://localhost:3000/api/books \
 | PUT | `/api/books/:bookId/chapters/:id` | Update chapter |
 | DELETE | `/api/books/:bookId/chapters/:id` | Delete chapter |
 
+#### AI Generation
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/books/:bookId/chapters/:id/generate` | Start AI chapter generation |
+| POST | `/api/books/:bookId/chapters/:id/feedback` | Approve/reject plan or draft |
+| GET | `/api/books/:bookId/chapters/:id/state` | Get current generation state |
+
 #### Create Chapter
 
 ```bash
@@ -179,6 +187,32 @@ curl -X POST http://localhost:3000/api/books/1/chapters \
   }'
 ```
 
+#### Generate Chapter (AI)
+
+```bash
+# 1. Start generation
+curl -X POST http://localhost:3000/api/books/1/chapters/1/generate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"hint": "Focus on the protagonist arriving at the castle"}'
+
+# 2. Approve the plan
+curl -X POST http://localhost:3000/api/books/1/chapters/1/feedback \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"approved": true}'
+
+# 2b. Or reject with feedback
+curl -X POST http://localhost:3000/api/books/1/chapters/1/feedback \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"approved": false, "feedback": "Add more dialogue"}'
+
+# 3. Check state at any time
+curl http://localhost:3000/api/books/1/chapters/1/state \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ---
 
 ### Book Plans (🔒 requires token)
@@ -188,7 +222,6 @@ curl -X POST http://localhost:3000/api/books/1/chapters \
 | GET | `/api/books/:bookId/plan` | Get book plan |
 | POST | `/api/books/:bookId/plan` | Create plan |
 | PUT | `/api/books/:bookId/plan` | Update plan |
-| DELETE | `/api/books/:bookId/plan` | Delete plan |
 
 #### Create Book Plan
 
@@ -294,14 +327,17 @@ Detailed architecture analysis, identified issues, and refactoring plan with rea
 - [x] PostgreSQL integration
 - [x] TypeScript strict mode
 - [x] JWT authentication
-- [x] CRUD for books and chapters
+- [x] CRUD for books, chapters, book plans
 - [x] LangGraph AI agents for chapter generation
 - [x] PostgreSQL checkpointing for agents
-- [ ] Service Layer (see ARCHITECTURE.md)
-- [ ] Repository Layer (see ARCHITECTURE.md)
+- [ ] Testing infrastructure (Vitest + Supertest) — see ARCHITECTURE.md
+- [ ] Repository Layer — see ARCHITECTURE.md
+- [ ] Service Layer — see ARCHITECTURE.md
+- [ ] Authorization Policy — see ARCHITECTURE.md
 - [ ] Structured logging (Pino)
 - [ ] Rate limiting
-- [ ] Tests (Jest + Supertest)
+- [ ] Security hardening (JWT, params validation)
+- [ ] Agent improvements (model selection, timeouts, error handling)
 - [ ] Agent response streaming (SSE)
 
 ## License
