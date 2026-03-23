@@ -12,25 +12,23 @@ const router: Router = Router();
 
 router.post("/register", async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { username, password } = req.body as RegisterDto;
+    const { email, password, first_name, last_name } = req.body as RegisterDto;
 
-    if (!username || !password) {
-      throw new AppError(400, "Username and password are required");
+    if (!email || !password || !first_name || !last_name) {
+      throw new AppError(400, "All fields are required");
     }
 
-    const existingUser = await db.query<User>("SELECT * FROM users WHERE username = $1", [
-      username,
-    ]);
+    const existingUser = await db.query<User>("SELECT * FROM users WHERE email = $1", [email]);
 
     if (existingUser.rows.length > 0) {
-      throw new AppError(400, "User already exists");
+      throw new AppError(400, "User with this email already exists");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await db.query<User>(
-      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username, created_at",
-      [username, hashedPassword]
+      "INSERT INTO users (email, password, first_name, last_name) VALUES ($1, $2, $3, $4) RETURNING id, email, first_name, last_name, created_at",
+      [email, hashedPassword, first_name, last_name]
     );
 
     const newUser = result.rows[0];
@@ -42,7 +40,7 @@ router.post("/register", async (req: AuthRequest, res: Response, next: NextFunct
     res.status(201).json({
       message: "User registered successfully",
       userId: newUser.id,
-      username: newUser.username,
+      email: newUser.email,
     });
   } catch (error) {
     next(error);
@@ -51,13 +49,13 @@ router.post("/register", async (req: AuthRequest, res: Response, next: NextFunct
 
 router.post("/login", async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { username, password } = req.body as LoginDto;
+    const { email, password } = req.body as LoginDto;
 
-    if (!username || !password) {
-      throw new AppError(400, "Username and password are required");
+    if (!email || !password) {
+      throw new AppError(400, "Email and password are required");
     }
 
-    const result = await db.query<User>("SELECT * FROM users WHERE username = $1", [username]);
+    const result = await db.query<User>("SELECT * FROM users WHERE email = $1", [email]);
 
     if (result.rows.length === 0) {
       throw new AppError(401, "Invalid credentials");
@@ -74,16 +72,20 @@ router.post("/login", async (req: AuthRequest, res: Response, next: NextFunction
       throw new AppError(401, "Invalid credentials");
     }
 
-    const token = jwt.sign({ id: user.id, username: user.username }, config.jwt.secret, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name },
+      config.jwt.secret,
+      { expiresIn: "24h" }
+    );
 
     res.json({
       message: "Login successful",
       token,
       user: {
         id: user.id,
-        username: user.username,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
       },
       date: new Date().toISOString(),
     });
@@ -96,7 +98,9 @@ router.get("/me", authenticateToken, (req: AuthRequest, res: Response) => {
   res.json({
     user: {
       id: req.user!.id,
-      username: req.user!.username,
+      email: req.user!.email,
+      first_name: req.user!.first_name,
+      last_name: req.user!.last_name,
     },
     date: new Date().toISOString(),
   });

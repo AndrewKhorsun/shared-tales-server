@@ -3,7 +3,9 @@ import { BookLanguage, GenerationSettings } from "../src/validators/book-plan.va
 
 export interface User {
   id: number;
-  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
   password: string;
   created_at: Date;
 }
@@ -34,7 +36,9 @@ export interface BookPlan {
 export interface AuthRequest extends Request {
   user?: {
     id: number;
-    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
   };
 }
 
@@ -53,5 +57,7 @@ export interface Chapter {
 
 export interface JWTPayload {
   id: number;
-  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
 }
