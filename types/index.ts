@@ -1,4 +1,5 @@
 import { Request } from "express";
+import { BookLanguage, GenerationSettings } from "../src/validators/book-plan.validator";
 
 export interface User {
   id: number;
@@ -24,7 +25,8 @@ export interface BookPlan {
   genre: string;
   target_audience: string;
   writing_style: string;
-  generation_settings: Record<string, unknown>;
+  generation_settings: GenerationSettings;
+  language: BookLanguage;
   created_at: Date;
   updated_at: Date;
 }
@@ -34,22 +36,6 @@ export interface AuthRequest extends Request {
     id: number;
     username: string;
   };
-}
-
-export interface RegisterRequestBody {
-  username: string;
-  password: string;
-}
-
-export interface LoginRequestBody {
-  username: string;
-  password: string;
-}
-
-export interface CreateBookRequestBody {
-  title: string;
-  description?: string;
-  content?: string;
 }
 
 export interface Chapter {
@@ -63,22 +49,6 @@ export interface Chapter {
   agent_state: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
-}
-
-export interface CreateChapterRequestBody {
-  title: string;
-  content?: string;
-  order_index?: number;
-  plan?: string;
-}
-
-export interface UpdateChapterRequestBody {
-  title?: string;
-  content?: string;
-  order_index?: number;
-  status?: "draft" | "published" | "archived";
-  plan?: string;
-  agent_state?: Record<string, unknown>;
 }
 
 export interface JWTPayload {

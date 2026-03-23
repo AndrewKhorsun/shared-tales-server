@@ -29,7 +29,7 @@ app.use("/api/books/:bookId/plan", bookPlansRouter);
 
 app.get("/", (_req: AuthRequest, res: Response) => {
   res.json({
-    message: "Shared Tails API v3",
+    message: "Shared Tales API v3",
     endpoints: {
       auth: {
         register: "POST /api/auth/register",

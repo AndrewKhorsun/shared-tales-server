@@ -1,0 +1,2 @@
+ALTER TABLE book_plans
+  ADD COLUMN language TEXT DEFAULT NULL;

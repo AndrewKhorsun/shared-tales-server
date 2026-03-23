@@ -41,3 +41,8 @@ Thumbs.db
 # Build outputs
 dist/
 build/
+
+# Internal docs
+ARCHITECTURE.md
+
+

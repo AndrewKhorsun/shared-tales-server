@@ -20,11 +20,11 @@ export const config = {
     allowedOrigins: ["http://localhost:5173", "https://andrewkhorsun.github.io"],
   },
   llm: {
-    anthropicKey: process.env.ANTROPICT_API_KEY || "",
+    anthropicKey: process.env.ANTHROPICT_API_KEY || "",
   },
 };
 
-const required = ["JWT_SECRET", "DB_NAME", "DB_USER", "DB_PASSWORD", "ANTROPICT_API_KEY"];
+const required = ["JWT_SECRET", "DB_NAME", "DB_USER", "DB_PASSWORD", "ANTHROPICT_API_KEY"];
 for (const key of required) {
   if (!process.env[key]) {
     throw new Error(`Missing required environment variable: ${key}`);

@@ -2,7 +2,8 @@ import { Router, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import * as bcrypt from "bcryptjs";
 import * as db from "../../db";
-import { AuthRequest, RegisterRequestBody, LoginRequestBody, User } from "../../types";
+import { AuthRequest, User } from "../../types";
+import { RegisterDto, LoginDto } from "../validators/auth.validator";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { config } from "../config";
 import { AppError } from "../middleware/error.middleware";
@@ -11,7 +12,7 @@ const router: Router = Router();
 
 router.post("/register", async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { username, password } = req.body as RegisterRequestBody;
+    const { username, password } = req.body as RegisterDto;
 
     if (!username || !password) {
       throw new AppError(400, "Username and password are required");
@@ -50,7 +51,7 @@ router.post("/register", async (req: AuthRequest, res: Response, next: NextFunct
 
 router.post("/login", async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { username, password } = req.body as LoginRequestBody;
+    const { username, password } = req.body as LoginDto;
 
     if (!username || !password) {
       throw new AppError(400, "Username and password are required");
