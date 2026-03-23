@@ -70,17 +70,18 @@ router.post(
   validate(createBookSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.user?.id || !req.user.username) {
+      if (!req.user?.id) {
         throw new AppError(401, "Unauthorized");
       }
 
       const { title, description, content } = req.body as CreateBookDto;
+      const authorName = `${req.user.first_name} ${req.user.last_name}`;
 
       const result = await db.query<Book>(
         `INSERT INTO books (title, description, content, author_id, author_name)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-        [title, description || "", content || "", req.user.id, req.user.username]
+        [title, description || "", content || "", req.user.id, authorName]
       );
 
       res.status(201).json({

@@ -106,7 +106,7 @@ router.post(
   validate(createChapterSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.user?.id || !req.user.username) {
+      if (!req.user?.id) {
         throw new AppError(401, "Unauthorized");
       }
 
