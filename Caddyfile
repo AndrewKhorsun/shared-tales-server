@@ -1,3 +1,7 @@
-shared-t.online {
+api.shared-t.online {
     reverse_proxy app:3000
+}
+
+shared-t.online {
+    reverse_proxy frontend:3001
 }

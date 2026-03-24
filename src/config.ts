@@ -2,9 +2,7 @@ import "dotenv/config";
 
 export const config = {
   jwt: {
-    secret:
-      process.env.JWT_SECRET ||
-      "a3f8c2e1d4b7a9f0e2c5d8b1a4f7c0e3d6b9a2f5c8e1d4b7a0f3c6e9d2b5a8f1c4e7d0b3a6f9c2e5d8b1a4f7",
+    secret: process.env.JWT_SECRET || "",
   },
   server: {
     port: parseInt(process.env.PORT || "3000"),
@@ -17,14 +15,18 @@ export const config = {
     password: process.env.DB_PASSWORD || "postgres",
   },
   cors: {
-    allowedOrigins: ["http://localhost:5173", "https://andrewkhorsun.github.io"],
+    allowedOrigins: [
+      "http://localhost:3001",
+      "https://andrewkhorsun.github.io",
+      "https://shared-t.online",
+    ],
   },
   llm: {
-    anthropicKey: process.env.ANTHROPICT_API_KEY || "",
+    anthropicKey: process.env.ANTHROPIC_API_KEY || "",
   },
 };
 
-const required = ["JWT_SECRET", "DB_NAME", "DB_USER", "DB_PASSWORD", "ANTHROPICT_API_KEY"];
+const required = ["JWT_SECRET", "DB_NAME", "DB_USER", "DB_PASSWORD", "ANTHROPIC_API_KEY"];
 for (const key of required) {
   if (!process.env[key]) {
     throw new Error(`Missing required environment variable: ${key}`);
