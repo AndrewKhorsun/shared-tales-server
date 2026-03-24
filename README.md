@@ -63,7 +63,7 @@ DB_NAME=shared_tales
 DB_USER=postgres
 DB_PASSWORD=your-password
 
-ANTHROPICT_API_KEY=your-anthropic-key
+ANTHROPIC_API_KEY=your-anthropic-key
 ```
 
 ### 3. Start
