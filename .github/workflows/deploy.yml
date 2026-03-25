@@ -20,6 +20,7 @@ jobs:
             cd /var/www/shared-tails
             git pull origin main
             docker compose up -d --build
+            docker compose restart caddy
             docker compose run --rm --entrypoint bash app db/migrate.sh
             echo "✅ Deploy completed at $(date)"
             git log -1 --oneline
