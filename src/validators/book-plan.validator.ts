@@ -31,7 +31,7 @@ const generationSettingsSchema = z.object({
 export const createBookPlanSchema = z.object({
   genre: z.string().max(100, "Genre is too long").optional(),
   target_audience: z.string().max(100, "Target audience is too long").optional(),
-  writing_style: z.string().max(100, "Writing style is too long").optional(),
+  writing_style: z.string().max(150, "Writing style is too long").optional(),
   language: z
     .enum([
       "english",

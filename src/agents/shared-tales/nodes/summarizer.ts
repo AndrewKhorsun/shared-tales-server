@@ -1,17 +1,13 @@
-import { ChatAnthropic } from "@langchain/anthropic";
 import { ChapterState } from "../state";
-import { config } from "../../../config";
 import { extractText } from "../utils";
-
-const llm = new ChatAnthropic({
-  apiKey: config.llm.anthropicKey,
-  model: "claude-haiku-4-5",
-});
+import { llm } from "../llm";
 
 export async function summarizerNode(
   state: typeof ChapterState.State
 ): Promise<Partial<typeof ChapterState.State>> {
   const { draft, chapter_number, book_context } = state;
+
+  console.log(`[summarizer] chapter=${chapter_number}`);
 
   const prompt = `You are a concise summarizer. Write a brief summary of this chapter.
 
@@ -27,8 +23,11 @@ Requirements:
 Summary:`;
 
   const response = await llm.invoke(prompt);
+  const summary = extractText(response);
+
+  console.log(`[summarizer] done: "${summary.slice(0, 100)}..."`);
 
   return {
-    chapter_summary: extractText(response),
+    chapter_summary: summary,
   };
 }

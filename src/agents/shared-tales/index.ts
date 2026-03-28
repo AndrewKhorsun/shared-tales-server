@@ -5,6 +5,7 @@ import { CreateBookPlanDto } from "../../validators/book-plan.validator";
 import { chapterGraph } from "./graph";
 
 export async function runChapterGeneration(bookId: number, chapterId: number, hint?: string) {
+  console.log(`[chapter-gen] start bookId=${bookId} chapterId=${chapterId}`);
   const bookResponse = await db.query<BookPlan>("SELECT * FROM book_plans WHERE book_id = $1", [
     bookId,
   ]);
@@ -44,6 +45,9 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
   });
 
   if (existingState.next.length > 0) {
+    console.log(
+      `[chapter-gen] already in progress, rejecting bookId=${bookId} chapterId=${chapterId}`
+    );
     throw new AppError(409, "Chapter generation is already in progress");
   }
 
@@ -68,6 +72,9 @@ export async function sendFeedback(
   isApprove: boolean,
   feedback?: string
 ) {
+  console.log(
+    `[chapter-gen] feedback bookId=${bookId} chapterId=${chapterId} approve=${isApprove}`
+  );
   const threadId = `book-${bookId}-chapter-${chapterId}`;
 
   const result = await chapterGraph.invoke(
@@ -79,6 +86,7 @@ export async function sendFeedback(
     .length;
 
   if (state === 0) {
+    console.log(`[chapter-gen] done, saving chapter=${chapterId}`);
     await db.query("UPDATE chapters SET content = $1 WHERE id = $2", [result.draft, chapterId]);
 
     await db.query(
