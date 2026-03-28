@@ -81,19 +81,20 @@ router.post(
         throw new AppError(409, "Book plan already exists");
       }
 
-      const { genre, target_audience, writing_style, generation_settings } =
+      const { genre, target_audience, writing_style, language, generation_settings } =
         req.body as CreateBookPlanDto;
 
       const result = await db.query<BookPlan>(
         `INSERT INTO book_plans
-         (book_id, genre, target_audience, writing_style, generation_settings)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING *`,
+              (book_id, genre, target_audience, writing_style, language, generation_settings)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              RETURNING *`,
         [
           bookIdParam,
           genre ?? "",
           target_audience ?? "",
           writing_style ?? "",
+          language ?? "english",
           JSON.stringify(generation_settings ?? {}),
         ]
       );

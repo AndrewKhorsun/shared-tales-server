@@ -1,18 +1,16 @@
 import { interrupt } from "@langchain/langgraph";
-import { ChatAnthropic } from "@langchain/anthropic";
 import { ChapterState } from "../state";
-import { config } from "../../../config";
 import { extractText } from "../utils";
-
-const llm = new ChatAnthropic({
-  apiKey: config.llm.anthropicKey,
-  model: "claude-haiku-4-5",
-});
+import { llm } from "../llm";
 
 export async function plannerNode(
   state: typeof ChapterState.State
 ): Promise<Partial<typeof ChapterState.State>> {
   const { book_context, chapter_number, chapter_plan_hint, user_feedback } = state;
+
+  console.log(
+    `[planner] chapter=${chapter_number} hint=${chapter_plan_hint ? `"${chapter_plan_hint.slice(0, 60)}..."` : "none"} revision=${!!user_feedback}`
+  );
 
   const { genre, target_audience, writing_style, generation_settings, language } = book_context;
 
@@ -83,13 +81,19 @@ Respond with the plan only, no additional commentary.`;
   const response = await llm.invoke(prompt);
   const plan = extractText(response);
 
-  // Pause and wait for user approval
-  if (!state.plan_approved) {
-    interrupt({ plan });
-  }
+  console.log(`[planner] plan generated (${plan.length} chars), waiting for approval`);
 
   return {
     plan,
     user_feedback: null, // reset after use
   };
+}
+
+export async function plannerInterruptNode(
+  state: typeof ChapterState.State
+): Promise<Partial<typeof ChapterState.State>> {
+  if (!state.plan_approved) {
+    interrupt({ plan: state.plan });
+  }
+  return {};
 }

@@ -1,12 +1,18 @@
-import { ChatAnthropic } from "@langchain/anthropic";
 import { ChapterState } from "../state";
-import { config } from "../../../config";
-import { extractText } from "../utils";
+import { llm } from "../llm";
+import { z } from "zod";
 
-const llm = new ChatAnthropic({
-  apiKey: config.llm.anthropicKey,
-  model: "claude-haiku-4-5",
+const EditorOutputSchema = z.object({
+  approved: z.boolean().describe("Whether the draft meets quality standards"),
+  feedback: z.string().nullable().describe("Specific issues to fix, null if approved"),
 });
+
+const BestDraftSchema = z.object({
+  best_draft_index: z.number().int().min(1).max(3).describe("1-based index of the best draft"),
+});
+
+const editorLlm = llm.withStructuredOutput(EditorOutputSchema);
+const pickerLlm = llm.withStructuredOutput(BestDraftSchema);
 
 export async function editorNode(
   state: typeof ChapterState.State
@@ -15,7 +21,9 @@ export async function editorNode(
 
   // Situation 3: max attempts reached — pick the best draft
   if (write_attempts >= 3) {
+    console.log(`[editor] max attempts reached, picking best draft from ${all_drafts.length}`);
     const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style ?? "");
+    console.log("[editor] best draft selected, approved");
     return {
       draft: bestDraft,
       editor_approved: true,
@@ -38,22 +46,19 @@ Evaluate the draft against these criteria:
 - Are character voices distinct and consistent?
 - Is the pacing appropriate?
 - Are there plot holes or inconsistencies?
+`;
 
-Respond in this exact format:
-APPROVED: yes/no
-FEEDBACK: (if no — specific issues to fix, if yes — write "none")`;
+  const result = await editorLlm.invoke(prompt);
 
-  const response = await llm.invoke(prompt);
-  const text = extractText(response);
-
-  // Parse response
-  const approved = /APPROVED:\s*yes/i.test(text);
-  const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/);
-  const feedback = feedbackMatch?.[1]?.trim() ?? null;
+  if (result.approved) {
+    console.log(`[editor] attempt=${write_attempts} approved`);
+  } else {
+    console.log(`[editor] attempt=${write_attempts} rejected: ${result.feedback?.slice(0, 120)}`);
+  }
 
   return {
-    editor_approved: approved,
-    editor_feedback: approved ? null : feedback,
+    editor_approved: result.approved,
+    editor_feedback: result.approved ? null : result.feedback,
   };
 }
 
@@ -74,8 +79,7 @@ ${draftsText}
 
 Respond with only the number of the best draft (1, 2, or 3). Nothing else.`;
 
-  const response = await llm.invoke(prompt);
-  const text = extractText(response).trim();
-  const bestIndex = parseInt(text) - 1;
-  return drafts[bestIndex] ?? drafts[drafts.length - 1] ?? "";
+  const result = await pickerLlm.invoke(prompt);
+  const index = result.best_draft_index - 1;
+  return drafts[index] ?? drafts[drafts.length - 1] ?? "";
 }

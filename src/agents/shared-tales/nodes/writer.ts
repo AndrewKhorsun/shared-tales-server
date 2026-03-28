@@ -1,17 +1,16 @@
-import { ChatAnthropic } from "@langchain/anthropic";
 import { ChapterState } from "../state";
-import { config } from "../../../config";
 import { extractText } from "../utils";
-
-const llm = new ChatAnthropic({
-  apiKey: config.llm.anthropicKey,
-  model: "claude-haiku-4-5",
-});
+import { writerLlm } from "../llm";
 
 export async function writerNode(
   state: typeof ChapterState.State
 ): Promise<Partial<typeof ChapterState.State>> {
   const { book_context, plan, editor_feedback, chapter_number } = state;
+
+  const attempt = (state.write_attempts ?? 0) + 1;
+  console.log(
+    `[writer] chapter=${chapter_number} attempt=${attempt}${editor_feedback ? " (with editor feedback)" : ""}`
+  );
 
   const { genre, writing_style, language, generation_settings } = book_context;
 
@@ -28,7 +27,7 @@ export async function writerNode(
   const worldSection = generation_settings?.setting?.world ?? "";
   const atmosphereSection = generation_settings?.setting?.atmosphere ?? "";
 
-  const prompt = `You are a skilled creative writer. Write a full chapter based on the provided plan.
+  const prompt = `You are a skilled creative writer.Write a full chapter based on the provided plan.
 
 WRITING GUIDELINES:
 Genre: ${genre}
@@ -65,8 +64,10 @@ Write the full chapter text. Requirements:
 
 Write the chapter now:`;
 
-  const response = await llm.invoke(prompt);
+  const response = await writerLlm.invoke(prompt);
   const draft = extractText(response);
+
+  console.log(`[writer] draft ready (${draft.length} chars)`);
 
   return {
     draft,
