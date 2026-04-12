@@ -87,17 +87,23 @@ export async function sendFeedback(
   const emitter = new EventEmitter();
   const threadId = `book-${bookId}-chapter-${chapterId}`;
 
-  setImmediate(() => {
-    chapterGraph
-      .invoke(
-        { plan_approved: isApprove, user_feedback: feedback ?? null },
-        { configurable: { thread_id: threadId, emitter, bookId, chapterId } }
-      )
-      .catch((err) => {
-        console.error(`[feedback] error bookId=${bookId} chapterId=${chapterId}`, err);
-        emitter.emit("error", { message: err.message });
-      });
+  const currentState = await chapterGraph.getState({
+    configurable: { thread_id: threadId },
   });
+  console.log("[feedback] next nodes:", currentState.next);
+
+  await chapterGraph.updateState(
+    { configurable: { thread_id: threadId } },
+    { plan_approved: isApprove, user_feedback: feedback ?? null },
+    "planner_interrupt"
+  );
+
+  chapterGraph
+    .invoke(null, { configurable: { thread_id: threadId, emitter, bookId, chapterId } })
+    .catch((err) => {
+      console.error(`[feedback] error bookId=${bookId} chapterId=${chapterId}`, err);
+      emitter.emit("error", { message: err.message });
+    });
 
   return { status: "started", emitter };
 }
