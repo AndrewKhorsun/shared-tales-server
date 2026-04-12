@@ -9,10 +9,10 @@ export const config = {
   },
   db: {
     host: process.env.DB_HOST || "localhost",
-    port: parseInt(process.env.DB_PORT || "5433"),
-    name: process.env.DB_NAME || "sharedtails",
-    user: process.env.DB_USER || "postgres",
-    password: process.env.DB_PASSWORD || "postgres",
+    port: parseInt(process.env.DB_PORT || "5432"),
+    name: process.env.DB_NAME || "",
+    user: process.env.DB_USER || "",
+    password: process.env.DB_PASSWORD || "",
   },
   cors: {
     allowedOrigins: [

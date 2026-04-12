@@ -4,14 +4,14 @@ Backend for a collaborative AI-powered book writing application. Built with Expr
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| HTTP | Express 4, TypeScript 5 |
-| AI Agents | LangGraph, @langchain/anthropic (Claude) |
-| Database | PostgreSQL (raw `pg`) |
-| Authentication | JWT + bcryptjs |
-| Validation | Zod |
-| Dev tools | tsx, ESLint, Prettier |
+| Layer          | Technology                               |
+| -------------- | ---------------------------------------- |
+| HTTP           | Express 4, TypeScript 5                  |
+| AI Agents      | LangGraph, @langchain/anthropic (Claude) |
+| Database       | PostgreSQL (raw `pg`)                    |
+| Authentication | JWT + bcryptjs                           |
+| Validation     | Zod                                      |
+| Dev tools      | tsx, ESLint, Prettier                    |
 
 ## Project Structure
 
@@ -20,19 +20,22 @@ backend/
 ├── server.ts                        # Express app entry point
 ├── db/
 │   ├── index.ts                     # PostgreSQL connection pool
-│   └── migrations/                  # SQL migration files (7 files)
+│   └── migrations/                  # SQL migration files (8 files)
 ├── src/
 │   ├── agents/
 │   │   ├── shared-tales/
 │   │   │   ├── state.ts             # LangGraph state definitions
 │   │   │   ├── graph.ts             # Workflow graph
 │   │   │   ├── index.ts             # Public agent API
+│   │   │   ├── llm.ts               # LLM instances (Haiku + Sonnet)
 │   │   │   ├── utils.ts
 │   │   │   └── nodes/               # planner, writer, editor, summarizer
 │   │   └── checkpointer.ts          # PostgreSQL-backed state persistence
 │   ├── routes/                      # Express route handlers
 │   ├── middleware/                  # auth, error, validate
+│   ├── services/                    # Business logic layer
 │   ├── validators/                  # Zod schemas (DTOs)
+│   ├── socket.ts                    # WebSocket setup
 │   └── config.ts
 └── types/                           # TypeScript type definitions
 ```
@@ -58,8 +61,8 @@ PORT=3000
 JWT_SECRET=your-super-secret-key
 
 DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=shared_tales
+DB_PORT=5433
+DB_NAME=sharedtails
 DB_USER=postgres
 DB_PASSWORD=your-password
 
@@ -96,11 +99,11 @@ GET /health
 
 ### Auth
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login, returns JWT |
-| GET | `/api/auth/me` | Current user info (🔒) |
+| Method | Path                 | Description            |
+| ------ | -------------------- | ---------------------- |
+| POST   | `/api/auth/register` | Register new user      |
+| POST   | `/api/auth/login`    | Login, returns JWT     |
+| GET    | `/api/auth/me`       | Current user info (🔒) |
 
 #### Register
 
@@ -127,6 +130,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 ```
 
 All protected endpoints require:
+
 ```
 Authorization: Bearer YOUR_TOKEN
 ```
@@ -135,13 +139,13 @@ Authorization: Bearer YOUR_TOKEN
 
 ### Books (🔒 requires token)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/books` | Get all user books |
-| GET | `/api/books/:id` | Get single book |
-| POST | `/api/books` | Create book |
-| PUT | `/api/books/:id` | Update book |
-| DELETE | `/api/books/:id` | Delete book |
+| Method | Path             | Description        |
+| ------ | ---------------- | ------------------ |
+| GET    | `/api/books`     | Get all user books |
+| GET    | `/api/books/:id` | Get single book    |
+| POST   | `/api/books`     | Create book        |
+| PUT    | `/api/books/:id` | Update book        |
+| DELETE | `/api/books/:id` | Delete book        |
 
 #### Create Book
 
@@ -159,21 +163,21 @@ curl -X POST http://localhost:3000/api/books \
 
 ### Chapters (🔒 requires token)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/books/:bookId/chapters` | Get all chapters |
-| GET | `/api/books/:bookId/chapters/:id` | Get single chapter |
-| POST | `/api/books/:bookId/chapters` | Create chapter |
-| PUT | `/api/books/:bookId/chapters/:id` | Update chapter |
-| DELETE | `/api/books/:bookId/chapters/:id` | Delete chapter |
+| Method | Path                              | Description        |
+| ------ | --------------------------------- | ------------------ |
+| GET    | `/api/books/:bookId/chapters`     | Get all chapters   |
+| GET    | `/api/books/:bookId/chapters/:id` | Get single chapter |
+| POST   | `/api/books/:bookId/chapters`     | Create chapter     |
+| PUT    | `/api/books/:bookId/chapters/:id` | Update chapter     |
+| DELETE | `/api/books/:bookId/chapters/:id` | Delete chapter     |
 
 #### AI Generation
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/books/:bookId/chapters/:id/generate` | Start AI chapter generation |
-| POST | `/api/books/:bookId/chapters/:id/feedback` | Approve/reject plan or draft |
-| GET | `/api/books/:bookId/chapters/:id/state` | Get current generation state |
+| Method | Path                                       | Description                  |
+| ------ | ------------------------------------------ | ---------------------------- |
+| POST   | `/api/books/:bookId/chapters/:id/generate` | Start AI chapter generation  |
+| POST   | `/api/books/:bookId/chapters/:id/feedback` | Approve/reject plan or draft |
+| GET    | `/api/books/:bookId/chapters/:id/state`    | Get current generation state |
 
 #### Create Chapter
 
@@ -217,11 +221,11 @@ curl http://localhost:3000/api/books/1/chapters/1/state \
 
 ### Book Plans (🔒 requires token)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/books/:bookId/plan` | Get book plan |
-| POST | `/api/books/:bookId/plan` | Create plan |
-| PUT | `/api/books/:bookId/plan` | Update plan |
+| Method | Path                      | Description   |
+| ------ | ------------------------- | ------------- |
+| GET    | `/api/books/:bookId/plan` | Get book plan |
+| POST   | `/api/books/:bookId/plan` | Create plan   |
+| PUT    | `/api/books/:bookId/plan` | Update plan   |
 
 #### Create Book Plan
 
@@ -265,12 +269,12 @@ START → planner → writer → editor ↻ (up to 3 attempts)
                           summarizer → END
 ```
 
-| Node | Model | Role |
-|------|-------|------|
-| planner | Claude Haiku | Creates chapter plan, waits for user approval |
-| writer | Claude Haiku | Writes chapter text (1000–1500 words) |
-| editor | Claude Haiku | Reviews quality, approves or sends back for revision |
-| summarizer | Claude Haiku | Creates a brief summary for context in future chapters |
+| Node       | Model         | Role                                                   |
+| ---------- | ------------- | ------------------------------------------------------ |
+| planner    | Claude Haiku  | Creates chapter plan, waits for user approval          |
+| writer     | Claude Sonnet | Writes chapter text (1000–1500 words)                  |
+| editor     | Claude Haiku  | Reviews quality, approves or sends back for revision   |
+| summarizer | Claude Haiku  | Creates a brief summary for context in future chapters |
 
 ### Checkpointing
 
@@ -314,14 +318,6 @@ pm2 restart shared-tales
 
 ---
 
-## Architecture & Improvements
-
-Detailed architecture analysis, identified issues, and refactoring plan with real code examples:
-
-**[ARCHITECTURE.md](./ARCHITECTURE.md)**
-
----
-
 ## Roadmap
 
 - [x] PostgreSQL integration
@@ -330,10 +326,10 @@ Detailed architecture analysis, identified issues, and refactoring plan with rea
 - [x] CRUD for books, chapters, book plans
 - [x] LangGraph AI agents for chapter generation
 - [x] PostgreSQL checkpointing for agents
-- [ ] Testing infrastructure (Vitest + Supertest) — see ARCHITECTURE.md
-- [ ] Repository Layer — see ARCHITECTURE.md
-- [ ] Service Layer — see ARCHITECTURE.md
-- [ ] Authorization Policy — see ARCHITECTURE.md
+- [ ] Testing infrastructure (Vitest + Supertest)
+- [ ] Repository Layer
+- [ ] Service Layer
+- [ ] Authorization Policy
 - [ ] Structured logging (Pino)
 - [ ] Rate limiting
 - [ ] Security hardening (JWT, params validation)
