@@ -1,16 +1,24 @@
 import { interrupt } from "@langchain/langgraph";
 import { ChapterState } from "../state";
-import { extractText } from "../utils";
+import { extractText, getEmitter } from "../utils";
 import { llm } from "../llm";
+import { RunnableConfig } from "@langchain/core/runnables";
 
 export async function plannerNode(
-  state: typeof ChapterState.State
+  state: typeof ChapterState.State,
+  config?: RunnableConfig
 ): Promise<Partial<typeof ChapterState.State>> {
   const { book_context, chapter_number, chapter_plan_hint, user_feedback } = state;
+  const emitter = getEmitter(config);
 
   console.log(
     `[planner] chapter=${chapter_number} hint=${chapter_plan_hint ? `"${chapter_plan_hint.slice(0, 60)}..."` : "none"} revision=${!!user_feedback}`
   );
+
+  emitter?.emit("progress", {
+    stage: "planner",
+    message: "Generating chapter plan...",
+  });
 
   const { genre, target_audience, writing_style, generation_settings, language } = book_context;
 
@@ -81,19 +89,30 @@ Respond with the plan only, no additional commentary.`;
   const response = await llm.invoke(prompt);
   const plan = extractText(response);
 
+  emitter?.emit("plan_ready", { plan });
+
   console.log(`[planner] plan generated (${plan.length} chars), waiting for approval`);
 
   return {
     plan,
-    user_feedback: null, // reset after use
+    user_feedback: null,
   };
 }
 
 export async function plannerInterruptNode(
-  state: typeof ChapterState.State
+  state: typeof ChapterState.State,
+  config?: RunnableConfig
 ): Promise<Partial<typeof ChapterState.State>> {
+  const emitter = getEmitter(config);
+
   if (!state.plan_approved) {
     interrupt({ plan: state.plan });
   }
+
+  emitter?.emit("progress", {
+    stage: "planner",
+    message: "Plan approved, starting writing...",
+  });
+
   return {};
 }

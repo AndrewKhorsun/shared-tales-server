@@ -15,6 +15,7 @@ import {
   ChapterFeedbackDto,
   chapterFeedbackSchema,
 } from "../validators/chapter-generation.validator";
+import { subscribeToProgress } from "../services/chapter-progress.service";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -270,9 +271,9 @@ router.post(
 
       const hint: string | undefined = req.body?.hint;
 
-      const result = await runChapterGeneration(bookId, chapterId, hint);
-
-      res.json(result);
+      const { status, emitter } = await runChapterGeneration(bookId, chapterId, hint);
+      subscribeToProgress(emitter, req.user.id.toString());
+      res.json({ status });
     } catch (error) {
       next(error);
     }
@@ -306,14 +307,14 @@ router.post(
 
       const body = req.body as ChapterFeedbackDto;
 
-      const result = await sendFeedback(
+      const { status, emitter } = await sendFeedback(
         bookId,
         chapterId,
         body.approved,
         body.approved === false ? body.feedback : undefined
       );
-
-      res.json(result);
+      subscribeToProgress(emitter, req.user.id.toString());
+      res.json({ status });
     } catch (error) {
       next(error);
     }

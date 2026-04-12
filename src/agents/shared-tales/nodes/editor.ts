@@ -1,6 +1,8 @@
 import { ChapterState } from "../state";
 import { llm } from "../llm";
 import { z } from "zod";
+import { getEmitter } from "../utils";
+import { RunnableConfig } from "@langchain/core/runnables";
 
 const EditorOutputSchema = z.object({
   approved: z.boolean().describe("Whether the draft meets quality standards"),
@@ -15,13 +17,21 @@ const editorLlm = llm.withStructuredOutput(EditorOutputSchema);
 const pickerLlm = llm.withStructuredOutput(BestDraftSchema);
 
 export async function editorNode(
-  state: typeof ChapterState.State
+  state: typeof ChapterState.State,
+  config?: RunnableConfig
 ): Promise<Partial<typeof ChapterState.State>> {
   const { draft, all_drafts, write_attempts, plan, book_context } = state;
+  const emitter = getEmitter(config);
 
   // Situation 3: max attempts reached — pick the best draft
   if (write_attempts >= 3) {
     console.log(`[editor] max attempts reached, picking best draft from ${all_drafts.length}`);
+
+    emitter?.emit("progress", {
+      stage: "editor",
+      message: "Max attempts reached, choosing best draft...",
+    });
+
     const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style ?? "");
     console.log("[editor] best draft selected, approved");
     return {
@@ -31,7 +41,11 @@ export async function editorNode(
     };
   }
 
-  // Situations 1 & 2: evaluate current draft
+  emitter?.emit("progress", {
+    stage: "editor",
+    message: "Reviewing draft...",
+  });
+
   const prompt = `You are a strict but fair literary editor. Evaluate this chapter draft.
 
 WRITING STYLE EXPECTED: ${book_context.writing_style}
@@ -55,6 +69,13 @@ Evaluate the draft against these criteria:
   } else {
     console.log(`[editor] attempt=${write_attempts} rejected: ${result.feedback?.slice(0, 120)}`);
   }
+
+  emitter?.emit("progress", {
+    stage: "editor",
+    message: result.approved
+      ? "Approved draft..."
+      : `Rejected draft with feedback ${result.feedback}`,
+  });
 
   return {
     editor_approved: result.approved,

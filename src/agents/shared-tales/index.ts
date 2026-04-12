@@ -1,3 +1,4 @@
+import EventEmitter from "events";
 import * as db from "../../../db";
 import { BookPlan, Chapter } from "../../../types";
 import { AppError } from "../../middleware/error.middleware";
@@ -6,6 +7,8 @@ import { chapterGraph } from "./graph";
 
 export async function runChapterGeneration(bookId: number, chapterId: number, hint?: string) {
   console.log(`[chapter-gen] start bookId=${bookId} chapterId=${chapterId}`);
+  const emitter = new EventEmitter();
+
   const bookResponse = await db.query<BookPlan>("SELECT * FROM book_plans WHERE book_id = $1", [
     bookId,
   ]);
@@ -51,19 +54,25 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
     throw new AppError(409, "Chapter generation is already in progress");
   }
 
-  const result = await chapterGraph.invoke(
-    {
-      book_context: bookContext,
-      chapter_number: chapterIndex,
-      chapter_plan_hint: hint ?? "",
-    },
-    { configurable: { thread_id: threadId } }
-  );
+  setImmediate(() => {
+    chapterGraph
+      .invoke(
+        {
+          book_context: bookContext,
+          chapter_number: chapterIndex,
+          chapter_plan_hint: hint ?? "",
+          plan_approved: false,
+          plan: null,
+        },
+        { configurable: { thread_id: threadId, emitter, bookId, chapterId } }
+      )
+      .catch((err) => {
+        console.error(`[chapter-gen] error bookId=${bookId} chapterId=${chapterId}`, err);
+        emitter.emit("error", { message: err.message });
+      });
+  });
 
-  return {
-    status: "waiting_approval",
-    plan: result.plan,
-  };
+  return { status: "started", emitter };
 }
 
 export async function sendFeedback(
@@ -75,49 +84,30 @@ export async function sendFeedback(
   console.log(
     `[chapter-gen] feedback bookId=${bookId} chapterId=${chapterId} approve=${isApprove}`
   );
+  const emitter = new EventEmitter();
   const threadId = `book-${bookId}-chapter-${chapterId}`;
 
-  const result = await chapterGraph.invoke(
-    { plan_approved: isApprove, user_feedback: feedback ?? null },
-    { configurable: { thread_id: threadId } }
-  );
+  setImmediate(() => {
+    chapterGraph
+      .invoke(
+        { plan_approved: isApprove, user_feedback: feedback ?? null },
+        { configurable: { thread_id: threadId, emitter, bookId, chapterId } }
+      )
+      .catch((err) => {
+        console.error(`[feedback] error bookId=${bookId} chapterId=${chapterId}`, err);
+        emitter.emit("error", { message: err.message });
+      });
+  });
 
-  const state = (await chapterGraph.getState({ configurable: { thread_id: threadId } })).next
-    .length;
-
-  if (state === 0) {
-    console.log(`[chapter-gen] done, saving chapter=${chapterId}`);
-    await db.query("UPDATE chapters SET content = $1 WHERE id = $2", [result.draft, chapterId]);
-
-    await db.query(
-      `UPDATE book_plans
-   SET generation_settings = jsonb_set(
-     generation_settings,
-     '{chapter_summaries}',
-     generation_settings->'chapter_summaries' || $1::jsonb
-   )
-   WHERE book_id = $2`,
-      [
-        JSON.stringify([{ chapter: result.chapter_number, summary: result.chapter_summary }]),
-        bookId,
-      ]
-    );
-
-    return {
-      status: "done",
-      chapter: result.draft,
-    };
-  } else {
-    return {
-      status: "waiting_approval",
-      plan: result.plan,
-    };
-  }
+  return { status: "started", emitter };
 }
+
 export async function getChapterState(bookId: number, chapterId: number) {
   const threadId = `book-${bookId}-chapter-${chapterId}`;
 
-  const { values, next } = await chapterGraph.getState({ configurable: { thread_id: threadId } });
+  const { values, next } = await chapterGraph.getState({
+    configurable: { thread_id: threadId },
+  });
 
   return {
     status: next.length === 0 ? "done" : "waiting_approval",
