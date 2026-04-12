@@ -95,6 +95,7 @@ Respond with the plan only, no additional commentary.`;
 
   return {
     plan,
+    plan_approved: false,
     user_feedback: null,
   };
 }
@@ -105,9 +106,7 @@ export async function plannerInterruptNode(
 ): Promise<Partial<typeof ChapterState.State>> {
   const emitter = getEmitter(config);
 
-  if (!state.plan_approved) {
-    interrupt({ plan: state.plan });
-  }
+  interrupt({ plan: state.plan });
 
   emitter?.emit("progress", {
     stage: "planner",
