@@ -1,0 +1,15 @@
+api.shared-t.online {
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    reverse_proxy app:3000
+}
+
+shared-t.online {
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    reverse_proxy frontend:3000
+}

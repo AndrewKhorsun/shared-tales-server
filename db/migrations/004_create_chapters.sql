@@ -1,0 +1,12 @@
+CREATE TABLE chapters (
+  id SERIAL PRIMARY KEY,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  content TEXT DEFAULT '',
+  order_index INTEGER NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_chapters_book_id ON chapters(book_id);

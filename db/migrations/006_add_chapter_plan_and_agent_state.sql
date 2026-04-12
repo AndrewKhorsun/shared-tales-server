@@ -1,0 +1,3 @@
+ALTER TABLE chapters
+  ADD COLUMN plan TEXT DEFAULT '',
+  ADD COLUMN agent_state JSONB DEFAULT '{}';
