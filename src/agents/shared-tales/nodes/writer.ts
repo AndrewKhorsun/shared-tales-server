@@ -1,16 +1,24 @@
 import { ChapterState } from "../state";
-import { extractText } from "../utils";
+import { extractText, getEmitter } from "../utils";
 import { writerLlm } from "../llm";
+import { RunnableConfig } from "@langchain/core/runnables";
 
 export async function writerNode(
-  state: typeof ChapterState.State
+  state: typeof ChapterState.State,
+  config?: RunnableConfig
 ): Promise<Partial<typeof ChapterState.State>> {
   const { book_context, plan, editor_feedback, chapter_number } = state;
-
+  const emitter = getEmitter(config);
   const attempt = (state.write_attempts ?? 0) + 1;
+
   console.log(
     `[writer] chapter=${chapter_number} attempt=${attempt}${editor_feedback ? " (with editor feedback)" : ""}`
   );
+
+  emitter?.emit("progress", {
+    stage: "writer",
+    message: "Writing chapter...",
+  });
 
   const { genre, writing_style, language, generation_settings } = book_context;
 
@@ -27,7 +35,7 @@ export async function writerNode(
   const worldSection = generation_settings?.setting?.world ?? "";
   const atmosphereSection = generation_settings?.setting?.atmosphere ?? "";
 
-  const prompt = `You are a skilled creative writer.Write a full chapter based on the provided plan.
+  const prompt = `You are a skilled creative writer. Write a full chapter based on the provided plan.
 
 WRITING GUIDELINES:
 Genre: ${genre}

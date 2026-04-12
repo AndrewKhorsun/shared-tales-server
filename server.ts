@@ -1,11 +1,23 @@
 import express, { Response } from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import * as db from "./db";
 import { AuthRequest } from "./types";
 import { chaptersRouter, booksRouter, authRouter, bookPlansRouter } from "./src/routes";
 import { config } from "./src/config";
 import { errorMiddleware } from "./src/middleware/error.middleware";
+import { initSocket } from "./src/socket";
 
 const app = express();
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: config.cors.allowedOrigins,
+    methods: ["GET", "POST"],
+  },
+});
+initSocket(io);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -77,7 +89,7 @@ app.use((_req: AuthRequest, res: Response) => {
 });
 app.use(errorMiddleware);
 
-app.listen(config.server.port, () => {
+httpServer.listen(config.server.port, () => {
   console.log(`🚀 Server running on http://localhost:${config.server.port}`);
   console.log(`📚 API documentation available at http://localhost:${config.server.port}/`);
   console.log("💾 Database: PostgreSQL");
