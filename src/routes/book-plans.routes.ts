@@ -91,10 +91,10 @@ router.post(
               RETURNING *`,
         [
           bookIdParam,
-          genre ?? "",
-          target_audience ?? "",
-          writing_style ?? "",
-          language ?? "english",
+          genre,
+          target_audience,
+          writing_style,
+          language,
           JSON.stringify(generation_settings ?? {}),
         ]
       );
@@ -133,7 +133,7 @@ router.put(
         throw new AppError(404, "Book not found");
       }
 
-      const { genre, target_audience, writing_style, generation_settings } =
+      const { genre, target_audience, writing_style, language, generation_settings } =
         req.body as UpdateBookPlanDto;
 
       const result = await db.query<BookPlan>(
@@ -141,14 +141,16 @@ router.put(
          SET genre = COALESCE($1, genre),
              target_audience = COALESCE($2, target_audience),
              writing_style = COALESCE($3, writing_style),
-             generation_settings = COALESCE($4, generation_settings),
+             language = COALESCE($4, language),
+             generation_settings = COALESCE($5, generation_settings),
              updated_at = CURRENT_TIMESTAMP
-         WHERE book_id = $5
+         WHERE book_id = $6
          RETURNING *`,
         [
           genre ?? null,
           target_audience ?? null,
           writing_style ?? null,
+          language ?? null,
           generation_settings ? JSON.stringify(generation_settings) : null,
           bookIdParam,
         ]

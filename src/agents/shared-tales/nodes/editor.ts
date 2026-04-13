@@ -32,7 +32,7 @@ export async function editorNode(
       message: "Max attempts reached, choosing best draft...",
     });
 
-    const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style ?? "");
+    const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style);
     console.log("[editor] best draft selected, approved");
     return {
       draft: bestDraft,
