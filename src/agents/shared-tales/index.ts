@@ -2,7 +2,7 @@ import EventEmitter from "events";
 import * as db from "../../../db";
 import { BookPlan, Chapter } from "../../../types";
 import { AppError } from "../../middleware/error.middleware";
-import { CreateBookPlanDto } from "../../validators/book-plan.validator";
+import { createBookPlanSchema, CreateBookPlanDto } from "../../validators/book-plan.validator";
 import { chapterGraph } from "./graph";
 
 export async function runChapterGeneration(bookId: number, chapterId: number, hint?: string) {
@@ -32,6 +32,21 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
   }
 
   const { genre, target_audience, writing_style, language, generation_settings } = bookPlan;
+
+  const validation = createBookPlanSchema.safeParse({
+    genre,
+    target_audience,
+    writing_style,
+    language,
+    generation_settings,
+  });
+
+  if (!validation.success) {
+    throw new AppError(
+      400,
+      "Book plan is incomplete. Fill in genre, target audience, writing style and language before generating."
+    );
+  }
 
   const bookContext: CreateBookPlanDto = {
     genre,
