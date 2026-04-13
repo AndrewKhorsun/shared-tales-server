@@ -2,10 +2,14 @@ import { Annotation } from "@langchain/langgraph";
 import { CreateBookPlanDto } from "../../validators/book-plan.validator";
 
 export const ChapterState = Annotation.Root({
-  // --- Input (set once at the start, never changes) ---
   book_context: Annotation<CreateBookPlanDto>({
     reducer: (_, next) => next,
-    default: () => ({}),
+    default: () => ({
+      genre: "",
+      target_audience: "",
+      writing_style: "",
+      language: "english" as const,
+    }),
   }),
   chapter_number: Annotation<number>({
     reducer: (_, next) => next,
