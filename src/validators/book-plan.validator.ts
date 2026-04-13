@@ -29,43 +29,47 @@ const generationSettingsSchema = z.object({
 });
 
 export const createBookPlanSchema = z.object({
-  genre: z.string().max(100, "Genre is too long").optional(),
-  target_audience: z.string().max(100, "Target audience is too long").optional(),
-  writing_style: z.string().max(150, "Writing style is too long").optional(),
-  language: z
-    .enum([
-      "english",
-      "ukrainian",
-      "spanish",
-      "french",
-      "german",
-      "italian",
-      "portuguese",
-      "polish",
-      "dutch",
-      "czech",
-      "swedish",
-      "norwegian",
-      "danish",
-      "finnish",
-      "turkish",
-      "japanese",
-      "korean",
-      "chinese",
-      "arabic",
-      "hindi",
-      "indonesian",
-      "vietnamese",
-      "thai",
-      "romanian",
-      "hungarian",
-      "greek",
-    ])
-    .optional(),
+  genre: z.string().min(1, "Genre is required").max(100, "Genre is too long"),
+  target_audience: z
+    .string()
+    .min(1, "Target audience is required")
+    .max(100, "Target audience is too long"),
+  writing_style: z
+    .string()
+    .min(1, "Writing style is required")
+    .max(150, "Writing style is too long"),
+  language: z.enum([
+    "english",
+    "ukrainian",
+    "spanish",
+    "french",
+    "german",
+    "italian",
+    "portuguese",
+    "polish",
+    "dutch",
+    "czech",
+    "swedish",
+    "norwegian",
+    "danish",
+    "finnish",
+    "turkish",
+    "japanese",
+    "korean",
+    "chinese",
+    "arabic",
+    "hindi",
+    "indonesian",
+    "vietnamese",
+    "thai",
+    "romanian",
+    "hungarian",
+    "greek",
+  ]),
   generation_settings: generationSettingsSchema.optional(),
 });
 
-export const updateBookPlanSchema = createBookPlanSchema;
+export const updateBookPlanSchema = createBookPlanSchema.partial();
 
 export type CreateBookPlanDto = z.infer<typeof createBookPlanSchema>;
 export type UpdateBookPlanDto = z.infer<typeof updateBookPlanSchema>;
