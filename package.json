@@ -14,7 +14,8 @@
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -56,6 +57,7 @@
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
     "prettier": "^3.7.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
