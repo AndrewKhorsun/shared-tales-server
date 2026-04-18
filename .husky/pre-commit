@@ -1,0 +1,36 @@
+#!/bin/sh
+if ! command -v claude >/dev/null 2>&1; then
+  echo "claude CLI not found, skipping pre-commit review"
+  exit 0
+fi
+
+echo "Running Claude pre-commit review..."
+
+REVIEW=$(git diff --cached | claude --print --model claude-haiku-4-5-20251001 "Review these staged changes.
+
+Check for:
+1. Obvious bugs or broken logic
+2. Security issues (hardcoded secrets, SQL injection, XSS, etc.)
+3. Debug statements or console.logs that should not be committed
+4. TODOs or unfinished code that blocks the commit
+
+Respond with exactly one of:
+- 'OK' if everything looks fine
+- 'BLOCK: <reason>' if there is a critical issue
+
+Be concise. Only block for real problems, not style issues." 2>/dev/null)
+
+echo "$REVIEW"
+
+case "$REVIEW" in
+  BLOCK:*)
+    echo ""
+    echo "Commit blocked by Claude review."
+    echo "Fix the issue and try again, or run 'git commit --no-verify' to skip."
+    exit 1
+    ;;
+  *)
+    echo "Review passed."
+    exit 0
+    ;;
+esac
