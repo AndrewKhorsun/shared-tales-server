@@ -127,8 +127,7 @@ router.post(
       if (bookCheck.rows.length === 0) {
         throw new AppError(404, "Book not found");
       }
-
-      const result = await db.query<Book>(
+      const result = await db.query<Chapter>(
         `INSERT INTO chapters (title, content,order_index,book_id)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
