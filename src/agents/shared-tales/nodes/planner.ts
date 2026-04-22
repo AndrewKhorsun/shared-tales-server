@@ -83,6 +83,34 @@ Create a detailed plan for chapter ${chapter_number}. The plan must:
 - Advance the main conflict
 - Include specific scenes and character interactions
 - Write in ${language}
+- Each scene must reveal character through action or choice, not description
+- Plan at least one moment of personal cost or doubt for the POV character
+- Leave at least one story question open at the end of the chapter
+
+SCENE DESIGN:
+- Each planned scene must have:
+  - a clear intention (what the character wants in this scene)
+  - friction or resistance (what blocks or complicates it)
+  - a small outcome or shift (even partial, ambiguous, or unexpected)
+
+INFORMATION CONTROL RULES:
+${
+  chapter_number <= 3
+    ? "- This is an early chapter: do NOT explain the nature of the central system or antagonist"
+    : "- Limit major revelations — do not resolve more than one core mystery per chapter"
+}
+- Each chapter may confirm at most ONE major suspicion — decide in advance which one
+- Prefer partial understanding, conflicting interpretations, or uncertainty over clear answers
+- If the author's hint signals a finale or climax, these limits may be relaxed
+
+SCENE CONSTRAINT:
+- Scenes must NOT explicitly confirm anything outside the defined "CONFIRMED THIS CHAPTER"
+- If a scene risks accidentally revealing more, rewrite it to imply, not confirm
+
+End your plan with exactly these three lines:
+CONFIRMED THIS CHAPTER: <one specific development>
+REMAINS UNKNOWN: <comma-separated list of open questions>
+SCENE FORBIDDEN: <what the writer must NOT confirm or state in any scene>
 
 Respond with the plan only, no additional commentary.`;
 

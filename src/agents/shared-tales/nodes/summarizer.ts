@@ -20,16 +20,34 @@ export async function summarizerNode(
     message: "Summarizing chapter....",
   });
 
-  const prompt = `You are a concise summarizer. Write a brief summary of this chapter.
+  const prompt = `You are a precise and conservative story summarizer.
 
 CHAPTER ${chapter_number}:
 ${draft}
 
-Requirements:
-- 3-5 sentences maximum
-- Include: key plot events, character actions, emotional shifts, any new information revealed
-- Skip descriptions, atmosphere, and filler — only what matters for story continuity
-- Write in ${book_context.language}
+Your job is to summarize ONLY what is explicitly established in the text.
+Do NOT interpret, expand, or infer beyond what is clearly shown.
+
+LENGTH:
+- 3–5 sentences maximum, one short paragraph
+
+CONTENT — include only:
+- key plot events
+- important character actions
+- emotional shifts (only if clearly shown in the text)
+- information explicitly confirmed in the chapter
+
+STRICT RULES:
+- Do NOT infer hidden meanings or intentions
+- Do NOT upgrade ambiguity into certainty
+  (if something is implied or suspected, keep it uncertain in the summary)
+- Do NOT reveal more than the chapter explicitly confirms
+- If something is unclear in the text, keep it unclear in the summary
+
+UNCERTAINTY HANDLING:
+- Reflect ambiguity using phrases like: "seems", "appears", "is unclear", "may indicate"
+
+Write in ${book_context.language}. Do not add commentary.
 
 Summary:`;
 

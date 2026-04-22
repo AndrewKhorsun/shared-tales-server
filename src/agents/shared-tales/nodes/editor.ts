@@ -54,12 +54,55 @@ CHAPTER PLAN (what should happen): ${plan}
 DRAFT TO EVALUATE:
 ${draft}
 
-Evaluate the draft against these criteria:
-- Does it follow the chapter plan?
-- Is the writing style consistent?
-- Are character voices distinct and consistent?
-- Is the pacing appropriate?
-- Are there plot holes or inconsistencies?
+Evaluate the draft strictly. Work through each criterion in order.
+INFORMATION CONTROL violations always cause REJECT, even if everything else is good.
+
+1. STRUCTURE & PLAN
+   - Does it follow the chapter plan?
+   - Are there plot holes or inconsistencies?
+
+2. STYLE & PACING
+   - Is the writing style consistent with the expected style?
+   - Are character voices distinct and consistent?
+   - Is sentence rhythm varied? Monotonous short-sentence chains are a flaw.
+
+3. LENGTH (critical)
+   - If the chapter feels clearly underdeveloped or rushes through events without
+     expansion → REJECT, reason: "too short or underdeveloped".
+
+4. CHARACTER DEPTH
+   - Do characters show personal motivation, fear, or cost beyond advancing the plot?
+   - Is there at least one concrete personal detail (memory, habit, relationship, regret)?
+
+5. INFORMATION CONTROL (critical — REJECT overrides everything)
+   - Extract the "CONFIRMED THIS CHAPTER" line from the plan.
+   - Extract the "SCENE FORBIDDEN" line from the plan.
+   - List every major mystery or truth the draft confirms.
+   - If the draft confirms anything beyond "CONFIRMED THIS CHAPTER"
+     → REJECT, reason: "exceeds allowed revelations".
+   - If the draft directly states or confirms anything listed in "SCENE FORBIDDEN"
+     → REJECT, reason: "forbidden reveal".
+   - Does the chapter end with at least one open question?
+   - Do antagonists or AI characters avoid explicitly naming themselves or their nature?
+     Forbidden: "I am the system", "I control the city", "I am the AI" — or equivalents
+     → if present, REJECT.
+
+6. PACING OVERLOAD
+   - If major events happen too rapidly without reflection, reaction, or transition
+     between them → REJECT, reason: "pacing overload".
+
+Respond in exactly one of these two formats:
+
+ACCEPT:
+<one sentence stating what makes this draft work>
+
+REJECT:
+- <specific problem 1>
+- <specific problem 2>
+Fix:
+- Step 1: <concrete action — refer to the specific part of the text if possible>
+- Step 2: <concrete action — refer to the specific part of the text if possible>
+- Step 3: <concrete action if needed>
 `;
 
   const result = await editorLlm.invoke(prompt);
