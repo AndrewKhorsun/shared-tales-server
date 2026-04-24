@@ -37,12 +37,8 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next:
       bookIdParam,
     ]);
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, "Book plan not found");
-    }
-
     res.json({
-      bookPlan: result.rows[0],
+      bookPlan: result.rows[0] ?? null,
     });
   } catch (error) {
     next(error);
