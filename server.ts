@@ -7,6 +7,7 @@ import { chaptersRouter, booksRouter, authRouter, bookPlansRouter } from "./src/
 import { config } from "./src/config";
 import { errorMiddleware } from "./src/middleware/error.middleware";
 import { initSocket } from "./src/socket";
+import { setupCheckpointer } from "./src/agents/checkpointer";
 
 const app = express();
 const httpServer = createServer(app);
@@ -89,8 +90,14 @@ app.use((_req: AuthRequest, res: Response) => {
 });
 app.use(errorMiddleware);
 
-httpServer.listen(config.server.port, () => {
-  console.log(`🚀 Server running on http://localhost:${config.server.port}`);
-  console.log(`📚 API documentation available at http://localhost:${config.server.port}/`);
-  console.log("💾 Database: PostgreSQL");
+(async () => {
+  await setupCheckpointer();
+  httpServer.listen(config.server.port, () => {
+    console.log(`🚀 Server running on http://localhost:${config.server.port}`);
+    console.log(`📚 API documentation available at http://localhost:${config.server.port}/`);
+    console.log("💾 Database: PostgreSQL");
+  });
+})().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });
