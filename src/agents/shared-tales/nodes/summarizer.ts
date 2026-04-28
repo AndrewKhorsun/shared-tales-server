@@ -55,7 +55,7 @@ Summary:`;
   const summary = extractText(response);
 
   if (bookId && chapterId) {
-    await db.query("UPDATE chapters SET content = $1 WHERE id = $2", [draft, chapterId]);
+    await db.query("UPDATE chapters SET content = $1, status = 'draft' WHERE id = $2", [draft, chapterId]);
 
     await db.query(
       `UPDATE book_plans

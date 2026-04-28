@@ -225,6 +225,43 @@ router.delete(
         throw new AppError(404, "Book not found");
       }
 
+      const chapterCheck = await db.query<Chapter>(
+        "SELECT id, order_index FROM chapters WHERE id = $1 AND book_id = $2",
+        [chapterId, bookId]
+      );
+
+      const chapter = chapterCheck.rows[0];
+      if (!chapter) {
+        throw new AppError(404, "Chapter not found");
+      }
+
+      const { order_index } = chapter;
+
+      const generatingCheck = await db.query(
+        `SELECT id FROM chapters
+         WHERE book_id = $1 AND order_index >= $2 AND status = 'generating'
+         LIMIT 1`,
+        [bookId, order_index]
+      );
+
+      if (generatingCheck.rows.length > 0) {
+        throw new AppError(400, "Cannot delete this chapter — generation is currently in progress");
+      }
+
+      const dependentCheck = await db.query(
+        `SELECT id FROM chapters
+         WHERE book_id = $1 AND order_index > $2 AND content != '' AND content IS NOT NULL
+         LIMIT 1`,
+        [bookId, order_index]
+      );
+
+      if (dependentCheck.rows.length > 0) {
+        throw new AppError(
+          400,
+          "Cannot delete this chapter — later chapters already have generated content that depends on it"
+        );
+      }
+
       const result = await db.query(
         "DELETE FROM chapters WHERE id = $1 AND book_id = $2 RETURNING *",
         [chapterId, bookId]
@@ -270,9 +307,28 @@ router.post(
 
       const hint: string | undefined = req.body?.hint;
 
-      const { status, emitter } = await runChapterGeneration(bookId, chapterId, hint);
-      subscribeToProgress(emitter, req.user.id.toString());
-      res.json({ status });
+      await db.query("UPDATE chapters SET status = 'generating' WHERE id = $1 AND book_id = $2", [
+        chapterId,
+        bookId,
+      ]);
+
+      try {
+        const { status, emitter } = await runChapterGeneration(bookId, chapterId, hint);
+        emitter.on("error", async () => {
+          await db.query("UPDATE chapters SET status = 'draft' WHERE id = $1 AND book_id = $2", [
+            chapterId,
+            bookId,
+          ]);
+        });
+        subscribeToProgress(emitter, req.user.id.toString());
+        res.json({ status });
+      } catch (genError) {
+        await db.query("UPDATE chapters SET status = 'draft' WHERE id = $1 AND book_id = $2", [
+          chapterId,
+          bookId,
+        ]);
+        throw genError;
+      }
     } catch (error) {
       next(error);
     }
