@@ -36,7 +36,10 @@ services:
     restart: always
 
   frontend:
-    build: /var/www/shared-tails-front
+    build:
+      context: /var/www/shared-tails-front
+      args:
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
     container_name: shared-tails-frontend
     environment:
       API_URL: ${API_URL}

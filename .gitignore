@@ -43,7 +43,6 @@ dist/
 build/
 
 # Internal docs
-ARCHITECTURE.md
-IMPROVEMENTS.md
+WORKPLAN.md
 
 

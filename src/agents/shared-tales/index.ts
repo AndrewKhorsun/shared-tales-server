@@ -130,9 +130,20 @@ export async function getChapterState(bookId: number, chapterId: number) {
     configurable: { thread_id: threadId },
   });
 
+  let status: string;
+  if (!values || Object.keys(values).length === 0) {
+    status = "idle";
+  } else if (next.includes("planner_interrupt")) {
+    status = "waiting_approval";
+  } else if (next.length > 0) {
+    status = "generating";
+  } else {
+    status = "done";
+  }
+
   return {
-    status: next.length === 0 ? "done" : "waiting_approval",
-    plan: values.plan,
-    draft: values.draft,
+    status,
+    plan: values?.plan ?? null,
+    draft: values?.draft ?? null,
   };
 }
