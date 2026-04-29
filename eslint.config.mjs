@@ -6,7 +6,37 @@ import prettierConfig from "eslint-config-prettier";
 
 export default [
   {
+    files: ["tests/**/*.ts"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        project: "./tsconfig.test.json",
+      },
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint,
+      prettier: prettier,
+    },
+    rules: {
+      ...eslint.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      ...prettierConfig.rules,
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "prettier/prettier": "error",
+      quotes: ["error", "double"],
+      semi: ["error", "always"],
+    },
+  },
+  {
     files: ["**/*.ts"],
+    ignores: ["tests/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
