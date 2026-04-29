@@ -1,5 +1,15 @@
 import { vi } from "vitest";
 
+vi.mock("../src/config", () => ({
+  config: {
+    jwt: { secret: "test-secret" },
+    server: { port: 3000 },
+    db: { host: "localhost", port: 5432, name: "test", user: "test", password: "test" },
+    cors: { allowedOrigins: [] },
+    llm: { anthropicKey: "test-key" },
+  },
+}));
+
 vi.mock("../db", () => ({
   query: vi.fn(),
   pool: { end: vi.fn(), query: vi.fn() },
