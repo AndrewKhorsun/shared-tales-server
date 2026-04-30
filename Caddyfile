@@ -3,7 +3,12 @@ api.shared-t.online {
         output file /var/log/caddy/access.log
         format json
     }
-    reverse_proxy app:3000
+
+    reverse_proxy app:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
 }
 
 shared-t.online {
@@ -11,5 +16,10 @@ shared-t.online {
         output file /var/log/caddy/access.log
         format json
     }
-    reverse_proxy frontend:3000
+
+    reverse_proxy frontend:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
 }
