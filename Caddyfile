@@ -5,9 +5,9 @@ api.shared-t.online {
     }
 
     reverse_proxy app:3000 {
-        header_up Host {host}
-        header_up X-Forwarded-Host {host}
-        header_up X-Forwarded-Proto {scheme}
+        header_up Host api.shared-t.online
+        header_up X-Forwarded-Host api.shared-t.online
+        header_up X-Forwarded-Proto https
     }
 }
 
@@ -18,8 +18,8 @@ shared-t.online {
     }
 
     reverse_proxy frontend:3000 {
-        header_up Host {host}
-        header_up X-Forwarded-Host {host}
-        header_up X-Forwarded-Proto {scheme}
+        header_up Host shared-t.online
+        header_up X-Forwarded-Host shared-t.online
+        header_up X-Forwarded-Proto https
     }
 }
