@@ -127,11 +127,17 @@ router.post(
       if (bookCheck.rows.length === 0) {
         throw new AppError(404, "Book not found");
       }
+
+      // Calculate word_count using same formula as migration and PUT route
+      const contentStr = content ?? "";
+      const trimmed = contentStr.trim();
+      const wordCount = trimmed === '' ? 0 : trimmed.split(' ').length;
+
       const result = await db.query<Chapter>(
-        `INSERT INTO chapters (title, content,order_index,book_id)
-       VALUES ($1, $2, $3, $4)
+        `INSERT INTO chapters (title, content, order_index, book_id, word_count)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-        [title, content ?? "", order_index ?? 0, bookId]
+        [title, contentStr, order_index ?? 0, bookId, wordCount]
       );
 
       res.status(201).json({
@@ -173,17 +179,38 @@ router.put(
 
       const { title, content, order_index, status } = req.body as UpdateChapterDto;
 
-      const result = await db.query(
-        `UPDATE chapters
-         SET title = COALESCE($1, title),
-             content = COALESCE($2, content),
-             order_index = COALESCE($3, order_index),
-             status = COALESCE($4, status),
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $5 AND book_id = $6
-         RETURNING *`,
-        [title ?? null, content ?? null, order_index ?? null, status ?? null, chapterId, bookId]
-      );
+      // Only calculate word_count if content is provided
+      // Uses same formula as migration: trim and split on single space
+      // This ensures consistent word counts between backfill and runtime updates
+      const updateParams: (string | number | null)[] = [
+        title ?? null,
+        content ?? null,
+        order_index ?? null,
+        status ?? null,
+        chapterId,
+        bookId,
+      ];
+
+      let updateQuery = `UPDATE chapters
+       SET title = COALESCE($1, title),
+           content = COALESCE($2, content),
+           order_index = COALESCE($3, order_index),
+           status = COALESCE($4, status),`;
+
+      if (content !== undefined) {
+        const trimmed = content.trim();
+        const wordCount = trimmed === '' ? 0 : trimmed.split(' ').length;
+        updateQuery += ` word_count = $7,`;
+        updateParams.push(wordCount);
+      } else {
+        updateQuery += ` word_count = word_count,`;
+      }
+
+      updateQuery += ` updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5 AND book_id = $6
+       RETURNING *`;
+
+      const result = await db.query(updateQuery, updateParams);
 
       if (result.rows.length === 0) {
         throw new AppError(404, "Chapter not found");
@@ -316,6 +343,12 @@ router.post(
         const { status, emitter } = await runChapterGeneration(bookId, chapterId, hint);
         emitter.on("error", async () => {
           await db.query("UPDATE chapters SET status = 'draft' WHERE id = $1 AND book_id = $2", [
+            chapterId,
+            bookId,
+          ]);
+        });
+        emitter.on("complete", async () => {
+          await db.query("UPDATE chapters SET status = 'published' WHERE id = $1 AND book_id = $2", [
             chapterId,
             bookId,
           ]);

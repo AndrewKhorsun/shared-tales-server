@@ -20,7 +20,16 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next:
     }
 
     const result = await db.query<Book>(
-      "SELECT * FROM books WHERE author_id = $1 ORDER BY created_at DESC",
+      `SELECT b.*,
+        COUNT(c.id) as total_chapters,
+        COUNT(c.id) FILTER (WHERE c.status = 'published') as published_chapters,
+        COALESCE(SUM(c.word_count), 0) as total_word_count,
+        EXISTS(SELECT 1 FROM chapters WHERE book_id = b.id AND status = 'generating') as has_generating_chapter
+       FROM books b
+       LEFT JOIN chapters c ON c.book_id = b.id
+       WHERE b.author_id = $1
+       GROUP BY b.id
+       ORDER BY b.updated_at DESC`,
       [req.user.id]
     );
 

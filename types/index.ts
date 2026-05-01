@@ -19,6 +19,10 @@ export interface Book {
   author_name: string;
   created_at: Date;
   updated_at: Date;
+  total_chapters?: number;
+  published_chapters?: number;
+  total_word_count?: number;
+  has_generating_chapter?: boolean;
 }
 
 export interface BookPlan {
@@ -51,6 +55,7 @@ export interface Chapter {
   status: "draft" | "published" | "archived";
   plan: string;
   agent_state: Record<string, unknown>;
+  word_count?: number;
   created_at: Date;
   updated_at: Date;
 }
