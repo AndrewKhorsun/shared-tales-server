@@ -1,11 +1,15 @@
 import express, { Express, Response } from "express";
+import passport from "passport";
 import * as db from "./db";
 import { AuthRequest } from "./types";
 import { chaptersRouter, booksRouter, authRouter, bookPlansRouter } from "./src/routes";
+import googleAuthRouter from "./src/routes/google-auth.routes";
 import { config } from "./src/config";
 import { errorMiddleware } from "./src/middleware/error.middleware";
 
 const app: Express = express();
+
+app.use(passport.initialize());
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -22,6 +26,8 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+
+app.use("/auth/google", googleAuthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/books", booksRouter);
 app.use("/api/books/:bookId/chapters", chaptersRouter);
