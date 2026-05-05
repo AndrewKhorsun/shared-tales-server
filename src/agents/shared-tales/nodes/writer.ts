@@ -1,7 +1,8 @@
 import { ChapterState } from "../state";
-import { extractText, getEmitter } from "../utils";
+import { extractText, getEmitter, getBookId } from "../utils";
 import { writerLlm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
+import { CostLoggingCallback } from "../costLogger";
 
 export async function writerNode(
   state: typeof ChapterState.State,
@@ -9,7 +10,14 @@ export async function writerNode(
 ): Promise<Partial<typeof ChapterState.State>> {
   const { book_context, plan, editor_feedback, chapter_number, chapter_plan_hint } = state;
   const emitter = getEmitter(config);
+  const bookId = getBookId(config);
   const attempt = (state.write_attempts ?? 0) + 1;
+  const costCallback = new CostLoggingCallback({
+    agentNode: "writer",
+    bookId,
+    chapterNumber: chapter_number,
+    model: "claude-sonnet-4-5",
+  });
 
   console.log(
     `[writer] chapter=${chapter_number} attempt=${attempt}${editor_feedback ? " (with editor feedback)" : ""}`
@@ -109,7 +117,7 @@ PLAN CONSTRAINTS:
 
 Write the chapter now:`;
 
-  const response = await writerLlm.invoke(prompt);
+  const response = await writerLlm.invoke(prompt, { callbacks: [costCallback] });
   const draft = extractText(response);
 
   console.log(`[writer] draft ready (${draft.length} chars)`);

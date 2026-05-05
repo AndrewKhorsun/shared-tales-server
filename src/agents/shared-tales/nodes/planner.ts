@@ -1,8 +1,9 @@
 import { interrupt } from "@langchain/langgraph";
 import { ChapterState } from "../state";
-import { extractText, getEmitter } from "../utils";
+import { extractText, getEmitter, getBookId } from "../utils";
 import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
+import { CostLoggingCallback } from "../costLogger";
 
 export async function plannerNode(
   state: typeof ChapterState.State,
@@ -10,6 +11,13 @@ export async function plannerNode(
 ): Promise<Partial<typeof ChapterState.State>> {
   const { book_context, chapter_number, chapter_plan_hint, user_feedback } = state;
   const emitter = getEmitter(config);
+  const bookId = getBookId(config);
+  const costCallback = new CostLoggingCallback({
+    agentNode: "planner",
+    bookId,
+    chapterNumber: chapter_number,
+    model: "claude-haiku-4-5",
+  });
 
   console.log(
     `[planner] chapter=${chapter_number} hint=${chapter_plan_hint ? `"${chapter_plan_hint.slice(0, 60)}..."` : "none"} revision=${!!user_feedback}`
@@ -114,7 +122,7 @@ SCENE FORBIDDEN: <what the writer must NOT confirm or state in any scene>
 
 Respond with the plan only, no additional commentary.`;
 
-  const response = await llm.invoke(prompt);
+  const response = await llm.invoke(prompt, { callbacks: [costCallback] });
   const plan = extractText(response);
 
   emitter?.emit("plan_ready", { plan });
