@@ -3,6 +3,7 @@ import { extractText, getBookId, getChapterId, getEmitter } from "../utils";
 import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
 import * as db from "../../../../db";
+import { CostLoggingCallback } from "../costLogger";
 
 export async function summarizerNode(
   state: typeof ChapterState.State,
@@ -51,7 +52,13 @@ Write in ${book_context.language}. Do not add commentary.
 
 Summary:`;
 
-  const response = await llm.invoke(prompt);
+  const costCallback = new CostLoggingCallback({
+    agentNode: "summarizer",
+    bookId,
+    chapterNumber: chapter_number,
+    model: "claude-haiku-4-5",
+  });
+  const response = await llm.invoke(prompt, { callbacks: [costCallback] });
   const summary = extractText(response);
 
   if (bookId && chapterId) {

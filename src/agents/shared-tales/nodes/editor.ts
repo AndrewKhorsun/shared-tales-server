@@ -1,8 +1,9 @@
 import { ChapterState } from "../state";
 import { llm } from "../llm";
 import { z } from "zod";
-import { getEmitter } from "../utils";
+import { getEmitter, getBookId } from "../utils";
 import { RunnableConfig } from "@langchain/core/runnables";
+import { CostLoggingCallback } from "../costLogger";
 
 const EditorOutputSchema = z.object({
   approved: z.boolean().describe("Whether the draft meets quality standards"),
@@ -20,8 +21,9 @@ export async function editorNode(
   state: typeof ChapterState.State,
   config?: RunnableConfig
 ): Promise<Partial<typeof ChapterState.State>> {
-  const { draft, all_drafts, write_attempts, plan, book_context } = state;
+  const { draft, all_drafts, write_attempts, plan, book_context, chapter_number } = state;
   const emitter = getEmitter(config);
+  const bookId = getBookId(config);
 
   // Situation 3: max attempts reached — pick the best draft
   if (write_attempts >= 3) {
@@ -32,7 +34,13 @@ export async function editorNode(
       message: "Max attempts reached, choosing best draft...",
     });
 
-    const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style);
+    const pickerCallback = new CostLoggingCallback({
+      agentNode: "editor_picker",
+      bookId,
+      chapterNumber: chapter_number,
+      model: "claude-haiku-4-5",
+    });
+    const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style, pickerCallback);
     console.log("[editor] best draft selected, approved");
     return {
       draft: bestDraft,
@@ -105,7 +113,13 @@ Fix:
 - Step 3: <concrete action if needed>
 `;
 
-  const result = await editorLlm.invoke(prompt);
+  const editorCallback = new CostLoggingCallback({
+    agentNode: "editor",
+    bookId,
+    chapterNumber: chapter_number,
+    model: "claude-haiku-4-5",
+  });
+  const result = await editorLlm.invoke(prompt, { callbacks: [editorCallback] });
 
   if (result.approved) {
     console.log(`[editor] attempt=${write_attempts} approved`);
@@ -129,7 +143,8 @@ Fix:
 async function pickBestDraft(
   drafts: string[],
   plan: string,
-  writingStyle: string
+  writingStyle: string,
+  callback?: CostLoggingCallback
 ): Promise<string> {
   const draftsText = drafts.map((d, i) => `DRAFT ${i + 1}:\n${d}`).join("\n\n---\n\n");
 
@@ -143,7 +158,7 @@ ${draftsText}
 
 Respond with only the number of the best draft (1, 2, or 3). Nothing else.`;
 
-  const result = await pickerLlm.invoke(prompt);
+  const result = await pickerLlm.invoke(prompt, { callbacks: callback ? [callback] : [] });
   const index = result.best_draft_index - 1;
   return drafts[index] ?? drafts[drafts.length - 1] ?? "";
 }
