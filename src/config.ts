@@ -24,9 +24,28 @@ export const config = {
   llm: {
     anthropicKey: process.env.ANTHROPIC_API_KEY || "",
   },
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || "",
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001",
+    apiUrl: process.env.API_URL || "http://localhost:3000",
+  },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    callbackUrl: `${process.env.API_URL || "http://localhost:3000"}/auth/google/callback`,
+  },
 };
 
-const required = ["JWT_SECRET", "DB_NAME", "DB_USER", "DB_PASSWORD", "ANTHROPIC_API_KEY"];
+const required = [
+  "JWT_SECRET",
+  "DB_NAME",
+  "DB_USER",
+  "DB_PASSWORD",
+  "ANTHROPIC_API_KEY",
+  "RESEND_API_KEY",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+];
 for (const key of required) {
   if (!process.env[key]) {
     throw new Error(`Missing required environment variable: ${key}`);
