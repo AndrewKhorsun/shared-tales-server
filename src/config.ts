@@ -27,7 +27,7 @@ export const config = {
   email: {
     resendApiKey: process.env.RESEND_API_KEY || "",
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001",
-    apiUrl: process.env.API_URL || "http://localhost:3000",
+    apiUrl: process.env.PUBLIC_API_URL || "http://localhost:3000",
   },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || "",
