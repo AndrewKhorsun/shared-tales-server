@@ -1,6 +1,18 @@
 import { Request } from "express";
 import { BookLanguage, GenerationSettings } from "../src/validators/book-plan.validator";
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface User {
+      id: number;
+      email: string;
+      first_name: string;
+      last_name: string;
+    }
+  }
+}
+
 export interface User {
   id: number;
   email: string;
@@ -39,15 +51,6 @@ export interface BookPlan {
   updated_at: Date;
 }
 
-export interface AuthRequest extends Request {
-  user?: {
-    id: number;
-    email: string;
-    first_name: string;
-    last_name: string;
-  };
-}
-
 export interface Chapter {
   id: number;
   book_id: number;
@@ -67,4 +70,8 @@ export interface JWTPayload {
   email: string;
   first_name: string;
   last_name: string;
+}
+
+export interface AuthRequest extends Request {
+  user?: JWTPayload;
 }
