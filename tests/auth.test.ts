@@ -18,6 +18,8 @@ const dbUser: User = {
   last_name: "User",
   password: HASHED_PASSWORD,
   created_at: new Date(),
+  email_verified: true,
+  email_verification_token: null,
 };
 
 function makeResult<T>(rows: T[]): QueryResult<T & Record<string, unknown>> {
@@ -98,6 +100,7 @@ describe("POST /api/auth/login", () => {
 
 describe("GET /api/auth/me", () => {
   it("returns 200 with user for valid token", async () => {
+    mockQuery.mockResolvedValueOnce(makeResult([{ email_verified: true }]));
     const res = await request(app).get("/api/auth/me").set(authHeader());
     expect(res.status).toBe(200);
     expect(res.body.user.email).toBe("test@test.com");

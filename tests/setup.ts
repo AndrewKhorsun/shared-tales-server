@@ -7,6 +7,8 @@ vi.mock("../src/config", () => ({
     db: { host: "localhost", port: 5432, name: "test", user: "test", password: "test" },
     cors: { allowedOrigins: [] },
     llm: { anthropicKey: "test-key" },
+    email: { resendApiKey: "test-key", siteUrl: "http://localhost:3001", apiUrl: "http://localhost:3000" },
+    google: { clientId: "test-client-id", clientSecret: "test-client-secret", callbackUrl: "http://localhost:3000/auth/google/callback" },
   },
 }));
 
