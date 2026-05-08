@@ -33,6 +33,7 @@ export interface Book {
   author_name: string;
   created_at: Date;
   updated_at: Date;
+  cover_image_url: string | null;
   total_chapters?: number;
   published_chapters?: number;
   total_word_count?: number;
