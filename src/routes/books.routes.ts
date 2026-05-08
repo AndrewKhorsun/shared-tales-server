@@ -186,11 +186,12 @@ router.delete(
         throw new AppError(404, "Book not found");
       }
 
-      deleteCoverFile(result.rows[0].cover_image_url);
+      const deletedBook = result.rows[0];
+      if (deletedBook) deleteCoverFile(deletedBook.cover_image_url);
 
       res.json({
         message: "Book deleted successfully",
-        book: result.rows[0],
+        book: deletedBook,
       });
     } catch (error) {
       next(error);
@@ -204,7 +205,8 @@ router.post(
   (req, res, next) => {
     uploadCover.single("cover")(req, res, (err) => {
       if (err) {
-        return res.status(400).json({ error: err.message });
+        res.status(400).json({ error: err.message });
+        return;
       }
       next();
     });
@@ -218,7 +220,9 @@ router.post(
         throw new AppError(400, "No file uploaded");
       }
 
-      const bookId = parseInt(req.params.id);
+      const bookIdParam = req.params.id;
+      if (!bookIdParam) throw new AppError(400, "Book ID is required");
+      const bookId = parseInt(bookIdParam);
       const coverUrl = `/uploads/covers/${req.file.filename}`;
 
       const checkResult = await db.query<Book>(
@@ -231,7 +235,8 @@ router.post(
         throw new AppError(404, "Book not found");
       }
 
-      deleteCoverFile(checkResult.rows[0].cover_image_url);
+      const existingBook = checkResult.rows[0];
+      if (existingBook) deleteCoverFile(existingBook.cover_image_url);
 
       const result = await db.query<Book>(
         "UPDATE books SET cover_image_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
@@ -257,7 +262,9 @@ router.delete(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookId = parseInt(req.params.id);
+      const bookIdParam = req.params.id;
+      if (!bookIdParam) throw new AppError(400, "Book ID is required");
+      const bookId = parseInt(bookIdParam);
 
       const checkResult = await db.query<Book>(
         "SELECT * FROM books WHERE id = $1 AND author_id = $2",
@@ -268,7 +275,8 @@ router.delete(
         throw new AppError(404, "Book not found");
       }
 
-      deleteCoverFile(checkResult.rows[0].cover_image_url);
+      const existingBook = checkResult.rows[0];
+      if (existingBook) deleteCoverFile(existingBook.cover_image_url);
 
       const result = await db.query<Book>(
         "UPDATE books SET cover_image_url = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
