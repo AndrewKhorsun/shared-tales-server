@@ -6,11 +6,11 @@ import { chaptersRouter, booksRouter, authRouter, bookPlansRouter } from "./src/
 import googleAuthRouter from "./src/routes/google-auth.routes";
 import { config } from "./src/config";
 import { errorMiddleware } from "./src/middleware/error.middleware";
+import path from "node:path";
 
 const app: Express = express();
 
 app.use(passport.initialize());
-
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && config.cors.allowedOrigins.includes(origin)) {
@@ -32,6 +32,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/books", booksRouter);
 app.use("/api/books/:bookId/chapters", chaptersRouter);
 app.use("/api/books/:bookId/plan", bookPlansRouter);
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.get("/", (_req: AuthRequest, res: Response) => {
   res.json({

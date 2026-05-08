@@ -1,4 +1,6 @@
 import { Router, Response, NextFunction } from "express";
+import fs from "fs";
+import path from "path";
 import * as db from "../../db";
 import { AuthRequest, Book } from "../../types";
 import { authenticateToken } from "../middleware/auth.middleware";
@@ -10,8 +12,16 @@ import {
   UpdateBookDto,
   updateBookSchema,
 } from "../validators/book.validators";
+import { uploadCover } from "../middleware/upload.middleware";
 
 const router: Router = Router();
+
+function deleteCoverFile(coverUrl: string | null): void {
+  if (!coverUrl) return;
+  const filename = path.basename(coverUrl);
+  const filePath = path.join(process.cwd(), "uploads/covers", filename);
+  fs.unlink(filePath, () => {});
+}
 
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -176,8 +186,97 @@ router.delete(
         throw new AppError(404, "Book not found");
       }
 
+      deleteCoverFile(result.rows[0].cover_image_url);
+
       res.json({
         message: "Book deleted successfully",
+        book: result.rows[0],
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/:id/cover",
+  authenticateToken,
+  (req, res, next) => {
+    uploadCover.single("cover")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+      if (!req.file) {
+        throw new AppError(400, "No file uploaded");
+      }
+
+      const bookId = parseInt(req.params.id);
+      const coverUrl = `/uploads/covers/${req.file.filename}`;
+
+      const checkResult = await db.query<Book>(
+        "SELECT * FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
+
+      if (checkResult.rows.length === 0) {
+        fs.unlink(req.file.path, () => {});
+        throw new AppError(404, "Book not found");
+      }
+
+      deleteCoverFile(checkResult.rows[0].cover_image_url);
+
+      const result = await db.query<Book>(
+        "UPDATE books SET cover_image_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+        [coverUrl, bookId]
+      );
+
+      res.json({
+        message: "Cover uploaded successfully",
+        book: result.rows[0],
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.delete(
+  "/:id/cover",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError(401, "Unauthorized");
+      }
+
+      const bookId = parseInt(req.params.id);
+
+      const checkResult = await db.query<Book>(
+        "SELECT * FROM books WHERE id = $1 AND author_id = $2",
+        [bookId, req.user.id]
+      );
+
+      if (checkResult.rows.length === 0) {
+        throw new AppError(404, "Book not found");
+      }
+
+      deleteCoverFile(checkResult.rows[0].cover_image_url);
+
+      const result = await db.query<Book>(
+        "UPDATE books SET cover_image_url = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
+        [bookId]
+      );
+
+      res.json({
+        message: "Cover deleted successfully",
         book: result.rows[0],
       });
     } catch (error) {
