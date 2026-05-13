@@ -63,4 +63,11 @@ export const bookTheme = {
     size: 4, // border width in eighths of a point
     space: 8, // space between border and text (pt)
   },
+
+  // Blockquote styling
+  blockquote: {
+    indentLeft: 720, // twips (0.5 inch)
+    borderSize: 12, // eighths of a point (~1.5pt)
+    borderSpace: 12, // space between border and text (pt)
+  },
 };

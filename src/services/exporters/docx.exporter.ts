@@ -15,6 +15,7 @@ import path from "path";
 import { Book, Chapter } from "../../../types";
 import { ExportMimeType, ExportResult } from "../../../types/export";
 import { bookTheme } from "./book-theme";
+import { blockTokensToParagraphs } from "./export-utils";
 
 const { font, color, fontSize, spacing, margin, indent, coverImage, divider } = bookTheme;
 
@@ -197,25 +198,7 @@ function chaptersSection(
       })
     );
 
-    const paragraphs = chapter.content
-      .split(/\n{2,}/)
-      .map((p) => p.trim())
-      .filter(Boolean);
-
-    if (paragraphs.length > 0) {
-      paragraphs.forEach((para) => {
-        children.push(
-          new Paragraph({
-            style: "chapterBody",
-            children: [new TextRun(para.replace(/\n/g, " "))],
-          })
-        );
-      });
-    } else {
-      children.push(
-        new Paragraph({ style: "chapterBody", children: [new TextRun(chapter.content)] })
-      );
-    }
+    children.push(...blockTokensToParagraphs(chapter.content));
   });
 
   return {
