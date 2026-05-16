@@ -21,6 +21,7 @@ export interface User {
   password: string;
   email_verified: boolean;
   email_verification_token: string | null;
+  onboarding_completed_at: Date | null;
   created_at: Date;
 }
 
