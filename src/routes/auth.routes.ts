@@ -104,10 +104,12 @@ router.get(
   authenticateToken,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const result = await db.query<User>("SELECT email_verified FROM users WHERE id = $1", [
-        req.user!.id,
-      ]);
-      const emailVerified = result.rows[0]?.email_verified ?? false;
+      const result = await db.query<User>(
+        "SELECT email_verified, onboarding_completed_at FROM users WHERE id = $1",
+        [req.user!.id]
+      );
+      const row = result.rows[0];
+      const emailVerified = row?.email_verified ?? false;
 
       res.json({
         user: {
@@ -116,9 +118,26 @@ router.get(
           first_name: req.user!.first_name,
           last_name: req.user!.last_name,
           email_verified: emailVerified,
+          onboarding_completed_at: row?.onboarding_completed_at ?? null,
         },
         date: new Date().toISOString(),
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/complete-onboarding",
+  authenticateToken,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      await db.query(
+        "UPDATE users SET onboarding_completed_at = NOW() WHERE id = $1 AND onboarding_completed_at IS NULL",
+        [req.user!.id]
+      );
+      res.json({ ok: true });
     } catch (error) {
       next(error);
     }
