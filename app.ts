@@ -1,6 +1,6 @@
 import express, { Express, Response } from "express";
 import passport from "passport";
-import * as db from "./db";
+import { pingDatabase } from "./src/repositories";
 import { AuthRequest } from "./types";
 import {
   chaptersRouter,
@@ -71,7 +71,7 @@ app.get("/", (_req: AuthRequest, res: Response) => {
 
 app.get("/health", async (_req: AuthRequest, res: Response) => {
   try {
-    await db.query("SELECT 1");
+    await pingDatabase();
     res.json({
       status: "ok",
       database: "connected",

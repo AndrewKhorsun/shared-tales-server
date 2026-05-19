@@ -35,7 +35,9 @@ export async function createUser(
   client?: PoolClient
 ): Promise<Pick<User, "id" | "email" | "first_name" | "last_name" | "created_at"> | null> {
   const executor = client ?? pool;
-  const result = await executor.query<Pick<User, "id" | "email" | "first_name" | "last_name" | "created_at">>(
+  const result = await executor.query<
+    Pick<User, "id" | "email" | "first_name" | "last_name" | "created_at">
+  >(
     `INSERT INTO users (email, password, first_name, last_name, email_verification_token)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, email, first_name, last_name, created_at`,
@@ -61,7 +63,10 @@ export async function createVerifiedUser(
   return result.rows[0] ?? null;
 }
 
-export async function verifyUserEmail(token: string, client?: PoolClient): Promise<{ id: number } | null> {
+export async function verifyUserEmail(
+  token: string,
+  client?: PoolClient
+): Promise<{ id: number } | null> {
   const executor = client ?? pool;
   const result = await executor.query<{ id: number }>(
     "UPDATE users SET email_verified = TRUE, email_verification_token = NULL WHERE email_verification_token = $1 RETURNING id",
@@ -76,7 +81,10 @@ export async function updateEmailVerificationToken(
   client?: PoolClient
 ): Promise<void> {
   const executor = client ?? pool;
-  await executor.query("UPDATE users SET email_verification_token = $1 WHERE id = $2", [token, userId]);
+  await executor.query("UPDATE users SET email_verification_token = $1 WHERE id = $2", [
+    token,
+    userId,
+  ]);
 }
 
 export async function completeOnboarding(userId: number, client?: PoolClient): Promise<void> {

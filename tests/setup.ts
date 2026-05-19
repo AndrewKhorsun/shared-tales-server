@@ -12,9 +12,11 @@ vi.mock("../src/config", () => ({
   },
 }));
 
+const mockQueryFn = vi.fn();
+
 vi.mock("../db", () => ({
-  query: vi.fn(),
-  pool: { end: vi.fn(), query: vi.fn() },
+  query: mockQueryFn,
+  pool: { end: vi.fn(), query: mockQueryFn },
 }));
 
 vi.mock("../src/middleware/auth.middleware", () => ({
