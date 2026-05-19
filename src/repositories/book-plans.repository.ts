@@ -54,6 +54,32 @@ export async function createBookPlan(
   return result.rows[0] ?? null;
 }
 
+export interface ChapterSummaryEntry {
+  chapter: number;
+  summary: string;
+}
+
+export async function appendChapterSummary(
+  bookId: number,
+  entry: ChapterSummaryEntry,
+  client?: PoolClient
+): Promise<BookPlan | null> {
+  const executor = client ?? pool;
+  const result = await executor.query<BookPlan>(
+    `UPDATE book_plans
+     SET generation_settings = jsonb_set(
+       generation_settings,
+       '{chapter_summaries}',
+       COALESCE(generation_settings->'chapter_summaries', '[]'::jsonb) || $1::jsonb
+     ),
+     updated_at = CURRENT_TIMESTAMP
+     WHERE book_id = $2
+     RETURNING *`,
+    [JSON.stringify([entry]), bookId]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function updateBookPlan(
   bookId: number,
   data: Partial<

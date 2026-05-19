@@ -4,7 +4,6 @@ import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
 import * as repo from "../../../repositories";
-import * as db from "../../../../db";
 
 export async function summarizerNode(
   state: typeof ChapterState.State,
@@ -64,18 +63,7 @@ Summary:`;
 
   if (bookId && chapterId) {
     await repo.updateChapter(chapterId, bookId, { content: draft ?? undefined, status: "draft" });
-
-    // jsonb_set для масиву chapter_summaries не виражається через updateBookPlan
-    await db.query(
-      `UPDATE book_plans
-       SET generation_settings = jsonb_set(
-         generation_settings,
-         '{chapter_summaries}',
-         generation_settings->'chapter_summaries' || $1::jsonb
-       )
-       WHERE book_id = $2`,
-      [JSON.stringify([{ chapter: chapter_number, summary }]), bookId]
-    );
+    await repo.appendChapterSummary(bookId, { chapter: chapter_number, summary });
 
     console.log(`[summarizer] saved chapter=${chapterId} to DB`);
   }

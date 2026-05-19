@@ -1,30 +1,19 @@
-import { query } from "../../db";
 import { Book, Chapter } from "../../types";
 import { exportToDocx } from "./exporters/docx.exporter";
 import type { BookExportFormat, ExportResult } from "../../types/export";
+import * as repo from "../repositories";
 export { BookExportFormat, BookExportData, ExportResult, ExportMimeType } from "../../types/export";
 
 async function getBookExportData(
   bookId: number,
   userId: number
 ): Promise<{ book: Book; chapters: Chapter[] }> {
-  const bookResult = await query<Book>("SELECT * FROM books WHERE id = $1 AND author_id = $2", [
-    bookId,
-    userId,
-  ]);
+  const book = await repo.findBookByIdAndAuthor(bookId, userId);
+  if (!book) throw new Error("Book not found");
 
-  const book = bookResult.rows[0];
+  const chapters = await repo.findChaptersByBookId(bookId);
 
-  if (book === undefined) {
-    throw new Error("Book not found");
-  }
-
-  const chaptersResult = await query<Chapter>(
-    "SELECT * FROM chapters WHERE book_id = $1 ORDER BY order_index",
-    [bookId]
-  );
-
-  return { book, chapters: chaptersResult.rows };
+  return { book, chapters };
 }
 
 export async function getChapterExportData(
@@ -32,26 +21,11 @@ export async function getChapterExportData(
   chapterId: number,
   userId: number
 ): Promise<{ book: Book; chapters: Chapter[] }> {
-  const bookResult = await query<Book>("SELECT * FROM books WHERE id = $1 AND author_id = $2", [
-    bookId,
-    userId,
-  ]);
+  const book = await repo.findBookByIdAndAuthor(bookId, userId);
+  if (!book) throw new Error("Book not found");
 
-  const book = bookResult.rows[0];
-
-  if (book === undefined) {
-    throw new Error("Book not found");
-  }
-
-  const chaptersResult = await query<Chapter>(
-    "SELECT * FROM chapters WHERE book_id = $1 AND id = $2",
-    [bookId, chapterId]
-  );
-
-  const chapter = chaptersResult.rows[0];
-  if (chapter === undefined) {
-    throw new Error("Chapter not found");
-  }
+  const chapter = await repo.findChapterByIdAndBookId(chapterId, bookId);
+  if (!chapter) throw new Error("Chapter not found");
 
   return { book, chapters: [chapter] };
 }
