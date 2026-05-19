@@ -1,7 +1,6 @@
 import { Router, Response, NextFunction } from "express";
 import { authenticateToken } from "../middleware/auth.middleware";
-import * as db from "../../db";
-import { AuthRequest, Book, Chapter } from "../../types";
+import { AuthRequest } from "../../types";
 import { AppError } from "../middleware/error.middleware";
 import {
   CreateChapterDto,
@@ -16,6 +15,7 @@ import {
   chapterFeedbackSchema,
 } from "../validators/chapter-generation.validator";
 import { subscribeToProgress } from "../services/chapter-progress.service";
+import * as repo from "../repositories";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -25,31 +25,17 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next:
       throw new AppError(401, "Unauthorized");
     }
 
-    const bookIdParam = req.params.bookId;
-    if (!bookIdParam) {
-      throw new AppError(400, "Book ID is required");
-    }
-    const bookId = parseInt(bookIdParam);
+    const bookId = parseInt(req.params.bookId ?? "");
+    if (!bookId) throw new AppError(400, "Book ID is required");
 
-    const bookCheck = await db.query<Book>(
-      "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-      [bookId, req.user.id]
-    );
+    const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+    if (!book) throw new AppError(404, "Book not found");
 
-    if (bookCheck.rows.length === 0) {
-      throw new AppError(404, "Book not found");
-    }
-
-    const result = await db.query(
-      `SELECT * FROM chapters
-         WHERE book_id = $1
-         ORDER BY order_index ASC`,
-      [bookId]
-    );
+    const chapters = await repo.findChaptersByBookId(bookId);
 
     res.json({
-      chapters: result.rows,
-      total: result.rows.length,
+      chapters,
+      total: chapters.length,
     });
   } catch (error) {
     next(error);
@@ -65,36 +51,17 @@ router.get(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.bookId;
-      const chapterIdParam = req.params.chapterId;
-      if (!bookIdParam || !chapterIdParam) {
-        throw new AppError(400, "Book ID and Chapter ID are required");
-      }
-      const bookId = parseInt(bookIdParam);
-      const chapterId = parseInt(chapterIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      const chapterId = parseInt(req.params.chapterId ?? "");
+      if (!bookId || !chapterId) throw new AppError(400, "Book ID and Chapter ID are required");
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const chapter = await repo.findChapterByIdAndBookId(chapterId, bookId);
+      if (!chapter) throw new AppError(404, "Chapter not found");
 
-      const result = await db.query<Chapter>(
-        `SELECT * FROM chapters
-         WHERE book_id = $1 AND id = $2`,
-        [bookId, chapterId]
-      );
-
-      if (result.rows.length === 0) {
-        throw new AppError(404, "Chapter not found");
-      }
-
-      res.json({
-        chapter: result.rows[0],
-      });
+      res.json({ chapter });
     } catch (error) {
       next(error);
     }
@@ -111,38 +78,19 @@ router.post(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.bookId;
-      if (!bookIdParam) {
-        throw new AppError(400, "Book ID is required");
-      }
-      const bookId = parseInt(bookIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
+
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
       const { title, content, order_index } = req.body as CreateChapterDto;
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
-
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
-
-      // Calculate word_count using same formula as migration and PUT route
-      const contentStr = content ?? "";
-      const trimmed = contentStr.trim();
-      const wordCount = trimmed === '' ? 0 : trimmed.split(' ').length;
-
-      const result = await db.query<Chapter>(
-        `INSERT INTO chapters (title, content, order_index, book_id, word_count)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-        [title, contentStr, order_index ?? 0, bookId, wordCount]
-      );
+      const chapter = await repo.createChapter(bookId, title, content ?? "", order_index ?? 0);
 
       res.status(201).json({
         message: "Chapter created successfully",
-        chapter: result.rows[0],
+        chapter,
       });
     } catch (error) {
       next(error);
@@ -160,65 +108,26 @@ router.put(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.bookId;
-      const chapterIdParam = req.params.chapterId;
-      if (!bookIdParam || !chapterIdParam) {
-        throw new AppError(400, "Book ID and Chapter ID are required");
-      }
-      const bookId = parseInt(bookIdParam);
-      const chapterId = parseInt(chapterIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      const chapterId = parseInt(req.params.chapterId ?? "");
+      if (!bookId || !chapterId) throw new AppError(400, "Book ID and Chapter ID are required");
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
-
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
       const { title, content, order_index, status } = req.body as UpdateChapterDto;
 
-      // Only calculate word_count if content is provided
-      // Uses same formula as migration: trim and split on single space
-      // This ensures consistent word counts between backfill and runtime updates
-      const updateParams: (string | number | null)[] = [
-        title ?? null,
-        content ?? null,
-        order_index ?? null,
-        status ?? null,
-        chapterId,
-        bookId,
-      ];
-
-      let updateQuery = `UPDATE chapters
-       SET title = COALESCE($1, title),
-           content = COALESCE($2, content),
-           order_index = COALESCE($3, order_index),
-           status = COALESCE($4, status),`;
-
-      if (content !== undefined) {
-        const trimmed = content.trim();
-        const wordCount = trimmed === '' ? 0 : trimmed.split(' ').length;
-        updateQuery += ` word_count = $7,`;
-        updateParams.push(wordCount);
-      } else {
-        updateQuery += ` word_count = word_count,`;
-      }
-
-      updateQuery += ` updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 AND book_id = $6
-       RETURNING *`;
-
-      const result = await db.query(updateQuery, updateParams);
-
-      if (result.rows.length === 0) {
-        throw new AppError(404, "Chapter not found");
-      }
+      const chapter = await repo.updateChapter(chapterId, bookId, {
+        title,
+        content,
+        order_index,
+        status,
+      });
+      if (!chapter) throw new AppError(404, "Chapter not found");
 
       res.json({
         message: "Chapter updated successfully",
-        chapter: result.rows[0],
+        chapter,
       });
     } catch (error) {
       next(error);
@@ -235,72 +144,35 @@ router.delete(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.bookId;
-      const chapterIdParam = req.params.chapterId;
-      if (!bookIdParam || !chapterIdParam) {
-        throw new AppError(400, "Book ID and Chapter ID are required");
-      }
-      const bookId = parseInt(bookIdParam);
-      const chapterId = parseInt(chapterIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      const chapterId = parseInt(req.params.chapterId ?? "");
+      if (!bookId || !chapterId) throw new AppError(400, "Book ID and Chapter ID are required");
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const chapter = await repo.findChapterByIdAndBookId(chapterId, bookId);
+      if (!chapter) throw new AppError(404, "Chapter not found");
 
-      const chapterCheck = await db.query<Chapter>(
-        "SELECT id, order_index FROM chapters WHERE id = $1 AND book_id = $2",
-        [chapterId, bookId]
-      );
-
-      const chapter = chapterCheck.rows[0];
-      if (!chapter) {
-        throw new AppError(404, "Chapter not found");
-      }
-
-      const { order_index } = chapter;
-
-      const generatingCheck = await db.query(
-        `SELECT id FROM chapters
-         WHERE book_id = $1 AND order_index >= $2 AND status = 'generating'
-         LIMIT 1`,
-        [bookId, order_index]
-      );
-
-      if (generatingCheck.rows.length > 0) {
+      const isGenerating = await repo.hasGeneratingChapterAtOrAfter(bookId, chapter.order_index);
+      if (isGenerating) {
         throw new AppError(400, "Cannot delete this chapter — generation is currently in progress");
       }
 
-      const dependentCheck = await db.query(
-        `SELECT id FROM chapters
-         WHERE book_id = $1 AND order_index > $2 AND content != '' AND content IS NOT NULL
-         LIMIT 1`,
-        [bookId, order_index]
-      );
-
-      if (dependentCheck.rows.length > 0) {
+      const hasDependent = await repo.hasDependentChaptersWithContent(bookId, chapter.order_index);
+      if (hasDependent) {
         throw new AppError(
           400,
           "Cannot delete this chapter — later chapters already have generated content that depends on it"
         );
       }
 
-      const result = await db.query(
-        "DELETE FROM chapters WHERE id = $1 AND book_id = $2 RETURNING *",
-        [chapterId, bookId]
-      );
-
-      if (result.rows.length === 0) {
-        throw new AppError(404, "Chapter not found");
-      }
+      const deleted = await repo.deleteChapter(chapterId, bookId);
+      if (!deleted) throw new AppError(404, "Chapter not found");
 
       res.json({
         message: "Chapter deleted successfully",
-        chapter: result.rows[0],
+        chapter: deleted,
       });
     } catch (error) {
       next(error);
@@ -317,49 +189,29 @@ router.post(
         throw new AppError(401, "Unauthorized");
       }
 
-      const { bookId: bookIdParam, chapterId: chapterIdParam } = req.params;
-      if (!bookIdParam || !chapterIdParam) {
-        throw new AppError(400, "Book ID and Chapter ID are required");
-      }
-      const bookId = parseInt(bookIdParam);
-      const chapterId = parseInt(chapterIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      const chapterId = parseInt(req.params.chapterId ?? "");
+      if (!bookId || !chapterId) throw new AppError(400, "Book ID and Chapter ID are required");
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
       const hint: string | undefined = req.body?.hint;
 
-      await db.query("UPDATE chapters SET status = 'generating' WHERE id = $1 AND book_id = $2", [
-        chapterId,
-        bookId,
-      ]);
+      await repo.setChapterStatus(chapterId, bookId, "generating");
 
       try {
         const { status, emitter } = await runChapterGeneration(bookId, chapterId, hint);
         emitter.on("error", async () => {
-          await db.query("UPDATE chapters SET status = 'draft' WHERE id = $1 AND book_id = $2", [
-            chapterId,
-            bookId,
-          ]);
+          await repo.setChapterStatus(chapterId, bookId, "draft");
         });
         emitter.on("complete", async () => {
-          await db.query("UPDATE chapters SET status = 'published' WHERE id = $1 AND book_id = $2", [
-            chapterId,
-            bookId,
-          ]);
+          await repo.setChapterStatus(chapterId, bookId, "published");
         });
         subscribeToProgress(emitter, req.user.id.toString());
         res.json({ status });
       } catch (genError) {
-        await db.query("UPDATE chapters SET status = 'draft' WHERE id = $1 AND book_id = $2", [
-          chapterId,
-          bookId,
-        ]);
+        await repo.setChapterStatus(chapterId, bookId, "draft");
         throw genError;
       }
     } catch (error) {
@@ -378,20 +230,12 @@ router.post(
         throw new AppError(401, "Unauthorized");
       }
 
-      const { bookId: bookIdParam, chapterId: chapterIdParam } = req.params;
-      if (!bookIdParam || !chapterIdParam) {
-        throw new AppError(400, "Book ID and Chapter ID are required");
-      }
-      const bookId = parseInt(bookIdParam);
-      const chapterId = parseInt(chapterIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      const chapterId = parseInt(req.params.chapterId ?? "");
+      if (!bookId || !chapterId) throw new AppError(400, "Book ID and Chapter ID are required");
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
       const body = req.body as ChapterFeedbackDto;
 
@@ -418,20 +262,12 @@ router.get(
         throw new AppError(401, "Unauthorized");
       }
 
-      const { bookId: bookIdParam, chapterId: chapterIdParam } = req.params;
-      if (!bookIdParam || !chapterIdParam) {
-        throw new AppError(400, "Book ID and Chapter ID are required");
-      }
-      const bookId = parseInt(bookIdParam);
-      const chapterId = parseInt(chapterIdParam);
+      const bookId = parseInt(req.params.bookId ?? "");
+      const chapterId = parseInt(req.params.chapterId ?? "");
+      if (!bookId || !chapterId) throw new AppError(400, "Book ID and Chapter ID are required");
 
-      const bookCheck = await db.query<Book>(
-        "SELECT id FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
       const result = await getChapterState(bookId, chapterId);
 

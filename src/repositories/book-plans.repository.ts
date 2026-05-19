@@ -23,7 +23,7 @@ export async function bookPlanExists(bookId: number, client?: PoolClient): Promi
   return result.rows.length > 0;
 }
 
-interface CreateBookPlanData {
+export interface CreateBookPlanData {
   genre: string;
   target_audience: string;
   writing_style: string;

@@ -29,7 +29,6 @@ export interface Book {
   id: number;
   title: string;
   description: string;
-  content: string;
   author_id: number;
   author_name: string;
   created_at: Date;
@@ -59,7 +58,7 @@ export interface Chapter {
   title: string;
   content: string;
   order_index: number;
-  status: "draft" | "published" | "archived";
+  status: "draft" | "published" | "archived" | "generating";
   plan: string;
   agent_state: Record<string, unknown>;
   word_count?: number;

@@ -2,8 +2,9 @@ import { ChapterState } from "../state";
 import { extractText, getBookId, getChapterId, getEmitter } from "../utils";
 import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
-import * as db from "../../../../db";
 import { CostLoggingCallback } from "../costLogger";
+import * as repo from "../../../repositories";
+import * as db from "../../../../db";
 
 export async function summarizerNode(
   state: typeof ChapterState.State,
@@ -62,8 +63,9 @@ Summary:`;
   const summary = extractText(response);
 
   if (bookId && chapterId) {
-    await db.query("UPDATE chapters SET content = $1, status = 'draft' WHERE id = $2", [draft, chapterId]);
+    await repo.updateChapter(chapterId, bookId, { content: draft ?? undefined, status: "draft" });
 
+    // jsonb_set для масиву chapter_summaries не виражається через updateBookPlan
     await db.query(
       `UPDATE book_plans
        SET generation_settings = jsonb_set(

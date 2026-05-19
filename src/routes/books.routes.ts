@@ -1,8 +1,7 @@
 import { Router, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
-import * as db from "../../db";
-import { AuthRequest, Book } from "../../types";
+import { AuthRequest } from "../../types";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { AppError } from "../middleware/error.middleware";
 import { validate } from "../middleware/validate.middleware";
@@ -13,6 +12,7 @@ import {
   updateBookSchema,
 } from "../validators/book.validators";
 import { uploadCover } from "../middleware/upload.middleware";
+import * as repo from "../repositories";
 
 const router: Router = Router();
 
@@ -29,23 +29,11 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next:
       throw new AppError(401, "Unauthorized");
     }
 
-    const result = await db.query<Book>(
-      `SELECT b.*,
-        COUNT(c.id) as total_chapters,
-        COUNT(c.id) FILTER (WHERE c.status = 'published') as published_chapters,
-        COALESCE(SUM(c.word_count), 0) as total_word_count,
-        EXISTS(SELECT 1 FROM chapters WHERE book_id = b.id AND status = 'generating') as has_generating_chapter
-       FROM books b
-       LEFT JOIN chapters c ON c.book_id = b.id
-       WHERE b.author_id = $1
-       GROUP BY b.id
-       ORDER BY b.updated_at DESC`,
-      [req.user.id]
-    );
+    const books = await repo.findAllAuthorBooks(req.user.id);
 
     res.json({
-      books: result.rows,
-      total: result.rows.length,
+      books,
+      total: books.length,
     });
   } catch (error) {
     next(error);
@@ -61,22 +49,13 @@ router.get(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.id;
-      if (!bookIdParam) {
-        throw new AppError(400, "Book ID is required");
-      }
+      const bookId = parseInt(req.params.id ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const bookId = parseInt(bookIdParam);
-      const result = await db.query<Book>("SELECT * FROM books WHERE id = $1 AND author_id = $2", [
-        bookId,
-        req.user.id,
-      ]);
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
-      if (result.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
-
-      res.json(result.rows[0]);
+      res.json(book);
     } catch (error) {
       next(error);
     }
@@ -93,19 +72,14 @@ router.post(
         throw new AppError(401, "Unauthorized");
       }
 
-      const { title, description, content } = req.body as CreateBookDto;
+      const { title, description } = req.body as CreateBookDto;
       const authorName = `${req.user.first_name} ${req.user.last_name}`;
 
-      const result = await db.query<Book>(
-        `INSERT INTO books (title, description, content, author_id, author_name)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-        [title, description || "", content || "", req.user.id, authorName]
-      );
+      const book = await repo.createBook(title, description || "", req.user.id, authorName);
 
       res.status(201).json({
         message: "Book created successfully",
-        book: result.rows[0],
+        book,
       });
     } catch (error) {
       next(error);
@@ -123,37 +97,19 @@ router.put(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.id;
-      if (!bookIdParam) {
-        throw new AppError(400, "Book ID is required");
-      }
+      const bookId = parseInt(req.params.id ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const bookId = parseInt(bookIdParam);
-      const { title, description, content } = req.body as UpdateBookDto;
+      const existing = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!existing) throw new AppError(404, "Book not found");
 
-      const checkResult = await db.query<Book>(
-        "SELECT * FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
+      const { title, description } = req.body as UpdateBookDto;
 
-      if (checkResult.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
-
-      const result = await db.query<Book>(
-        `UPDATE books
-       SET title = COALESCE($1, title),
-           description = COALESCE($2, description),
-           content = COALESCE($3, content),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND author_id = $5
-       RETURNING *`,
-        [title ?? null, description ?? null, content ?? null, bookId, req.user.id]
-      );
+      const book = await repo.updateBook(bookId, req.user.id, { title, description });
 
       res.json({
         message: "Book updated successfully",
-        book: result.rows[0],
+        book,
       });
     } catch (error) {
       next(error);
@@ -170,28 +126,17 @@ router.delete(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.id;
-      if (!bookIdParam) {
-        throw new AppError(400, "Book ID is required");
-      }
+      const bookId = parseInt(req.params.id ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const bookId = parseInt(bookIdParam);
+      const book = await repo.deleteBook(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
-      const result = await db.query<Book>(
-        "DELETE FROM books WHERE id = $1 AND author_id = $2 RETURNING *",
-        [bookId, req.user.id]
-      );
-
-      if (result.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
-
-      const deletedBook = result.rows[0];
-      if (deletedBook) deleteCoverFile(deletedBook.cover_image_url);
+      deleteCoverFile(book.cover_image_url);
 
       res.json({
         message: "Book deleted successfully",
-        book: deletedBook,
+        book,
       });
     } catch (error) {
       next(error);
@@ -220,32 +165,23 @@ router.post(
         throw new AppError(400, "No file uploaded");
       }
 
-      const bookIdParam = req.params.id;
-      if (!bookIdParam) throw new AppError(400, "Book ID is required");
-      const bookId = parseInt(bookIdParam);
-      const coverUrl = `/uploads/covers/${req.file.filename}`;
+      const bookId = parseInt(req.params.id ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const checkResult = await db.query<Book>(
-        "SELECT * FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
-
-      if (checkResult.rows.length === 0) {
+      const existing = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!existing) {
         fs.unlink(req.file.path, () => {});
         throw new AppError(404, "Book not found");
       }
 
-      const existingBook = checkResult.rows[0];
-      if (existingBook) deleteCoverFile(existingBook.cover_image_url);
+      deleteCoverFile(existing.cover_image_url);
 
-      const result = await db.query<Book>(
-        "UPDATE books SET cover_image_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
-        [coverUrl, bookId]
-      );
+      const coverUrl = `/uploads/covers/${req.file.filename}`;
+      const book = await repo.updateBookCover(bookId, coverUrl);
 
       res.json({
         message: "Cover uploaded successfully",
-        book: result.rows[0],
+        book,
       });
     } catch (error) {
       next(error);
@@ -262,30 +198,19 @@ router.delete(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.id;
-      if (!bookIdParam) throw new AppError(400, "Book ID is required");
-      const bookId = parseInt(bookIdParam);
+      const bookId = parseInt(req.params.id ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const checkResult = await db.query<Book>(
-        "SELECT * FROM books WHERE id = $1 AND author_id = $2",
-        [bookId, req.user.id]
-      );
+      const existing = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!existing) throw new AppError(404, "Book not found");
 
-      if (checkResult.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      deleteCoverFile(existing.cover_image_url);
 
-      const existingBook = checkResult.rows[0];
-      if (existingBook) deleteCoverFile(existingBook.cover_image_url);
-
-      const result = await db.query<Book>(
-        "UPDATE books SET cover_image_url = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
-        [bookId]
-      );
+      const book = await repo.updateBookCover(bookId, null);
 
       res.json({
         message: "Cover deleted successfully",
-        book: result.rows[0],
+        book,
       });
     } catch (error) {
       next(error);
