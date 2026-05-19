@@ -1,5 +1,4 @@
 import { Request } from "express";
-import { BookLanguage, GenerationSettings } from "../src/validators/book-plan.validator";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -38,6 +37,28 @@ export interface Book {
   published_chapters?: number;
   total_word_count?: number;
   has_generating_chapter?: boolean;
+}
+
+export type BookLanguage =
+  | "english" | "ukrainian" | "spanish" | "french" | "german"
+  | "italian" | "portuguese" | "polish" | "dutch" | "czech"
+  | "swedish" | "norwegian" | "danish" | "finnish" | "turkish"
+  | "japanese" | "korean" | "chinese" | "arabic" | "hindi"
+  | "indonesian" | "vietnamese" | "thai" | "romanian" | "hungarian"
+  | "greek";
+
+export interface GenerationSettingsCharacter {
+  name: string;
+  role: "protagonist" | "antagonist" | "supporting";
+  description: string;
+  traits: string[];
+}
+
+export interface GenerationSettings {
+  characters: GenerationSettingsCharacter[];
+  setting: { world: string; atmosphere: string };
+  plot_arc: { premise: string; conflict: string; resolution: string };
+  chapter_summaries: { chapter: number; summary: string }[];
 }
 
 export interface BookPlan {

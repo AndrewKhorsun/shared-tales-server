@@ -1,7 +1,6 @@
 import { PoolClient } from "pg";
-import { BookPlan } from "../../types";
+import { BookPlan, BookLanguage, GenerationSettings } from "../../types";
 import { pool } from "../../db";
-import { BookLanguage, GenerationSettings } from "../validators/book-plan.validator";
 
 export async function findBookPlanByBookId(
   bookId: number,
