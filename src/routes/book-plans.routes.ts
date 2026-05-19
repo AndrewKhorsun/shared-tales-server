@@ -1,15 +1,16 @@
 import { NextFunction, Router, Response } from "express";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
-import { AuthRequest, BookPlan } from "../../types";
+import { AuthRequest } from "../../types";
 import { AppError } from "../middleware/error.middleware";
-import * as db from "../../db";
 import {
   CreateBookPlanDto,
   createBookPlanSchema,
   UpdateBookPlanDto,
   updateBookPlanSchema,
+  GenerationSettings,
 } from "../validators/book-plan.validator";
+import * as repo from "../repositories";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -18,28 +19,16 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next:
     if (!req.user?.id) {
       throw new AppError(401, "Unauthorized");
     }
-    const bookIdParam = req.params.bookId;
 
-    if (!bookIdParam) {
-      throw new AppError(400, "Book ID is required");
-    }
+    const bookId = parseInt(req.params.bookId ?? "");
+    if (!bookId) throw new AppError(400, "Book ID is required");
 
-    const bookCheck = await db.query("SELECT id FROM books WHERE id = $1 AND author_id = $2", [
-      bookIdParam,
-      req.user.id,
-    ]);
+    const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+    if (!book) throw new AppError(404, "Book not found");
 
-    if (bookCheck.rows.length === 0) {
-      throw new AppError(404, "Book not found");
-    }
+    const bookPlan = await repo.findBookPlanByBookId(bookId);
 
-    const result = await db.query<BookPlan>("SELECT * FROM book_plans WHERE book_id = $1", [
-      bookIdParam,
-    ]);
-
-    res.json({
-      bookPlan: result.rows[0] ?? null,
-    });
+    res.json({ bookPlan });
   } catch (error) {
     next(error);
   }
@@ -55,49 +44,29 @@ router.post(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.bookId;
-      if (!bookIdParam) {
-        throw new AppError(400, "Book ID is required");
-      }
+      const bookId = parseInt(req.params.bookId ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const bookCheck = await db.query("SELECT id FROM books WHERE id = $1 AND author_id = $2", [
-        bookIdParam,
-        req.user.id,
-      ]);
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
-
-      const existingPlan = await db.query("SELECT id FROM book_plans WHERE book_id = $1", [
-        bookIdParam,
-      ]);
-
-      if (existingPlan.rows.length > 0) {
-        throw new AppError(409, "Book plan already exists");
-      }
+      const exists = await repo.bookPlanExists(bookId);
+      if (exists) throw new AppError(409, "Book plan already exists");
 
       const { genre, target_audience, writing_style, language, generation_settings } =
         req.body as CreateBookPlanDto;
 
-      const result = await db.query<BookPlan>(
-        `INSERT INTO book_plans
-              (book_id, genre, target_audience, writing_style, language, generation_settings)
-              VALUES ($1, $2, $3, $4, $5, $6)
-              RETURNING *`,
-        [
-          bookIdParam,
-          genre,
-          target_audience,
-          writing_style,
-          language,
-          JSON.stringify(generation_settings ?? {}),
-        ]
-      );
+      const bookPlan = await repo.createBookPlan(bookId, {
+        genre,
+        target_audience,
+        writing_style,
+        language,
+        generation_settings: generation_settings ?? ({} as GenerationSettings),
+      });
 
       res.status(201).json({
         message: "Book plan created successfully",
-        bookPlan: result.rows[0],
+        bookPlan,
       });
     } catch (error) {
       next(error);
@@ -115,50 +84,28 @@ router.put(
         throw new AppError(401, "Unauthorized");
       }
 
-      const bookIdParam = req.params.bookId;
-      if (!bookIdParam) {
-        throw new AppError(400, "Book ID is required");
-      }
+      const bookId = parseInt(req.params.bookId ?? "");
+      if (!bookId) throw new AppError(400, "Book ID is required");
 
-      const bookCheck = await db.query("SELECT id FROM books WHERE id = $1 AND author_id = $2", [
-        bookIdParam,
-        req.user.id,
-      ]);
-
-      if (bookCheck.rows.length === 0) {
-        throw new AppError(404, "Book not found");
-      }
+      const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
+      if (!book) throw new AppError(404, "Book not found");
 
       const { genre, target_audience, writing_style, language, generation_settings } =
         req.body as UpdateBookPlanDto;
 
-      const result = await db.query<BookPlan>(
-        `UPDATE book_plans
-         SET genre = COALESCE($1, genre),
-             target_audience = COALESCE($2, target_audience),
-             writing_style = COALESCE($3, writing_style),
-             language = COALESCE($4, language),
-             generation_settings = COALESCE($5, generation_settings),
-             updated_at = CURRENT_TIMESTAMP
-         WHERE book_id = $6
-         RETURNING *`,
-        [
-          genre ?? null,
-          target_audience ?? null,
-          writing_style ?? null,
-          language ?? null,
-          generation_settings ? JSON.stringify(generation_settings) : null,
-          bookIdParam,
-        ]
-      );
+      const bookPlan = await repo.updateBookPlan(bookId, {
+        genre,
+        target_audience,
+        writing_style,
+        language,
+        generation_settings,
+      });
 
-      if (result.rows.length === 0) {
-        throw new AppError(404, "Book plan not found");
-      }
+      if (!bookPlan) throw new AppError(404, "Book plan not found");
 
       res.json({
         message: "Book plan updated successfully",
-        bookPlan: result.rows[0],
+        bookPlan,
       });
     } catch (error) {
       next(error);

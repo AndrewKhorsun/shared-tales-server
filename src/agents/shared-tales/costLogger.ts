@@ -1,6 +1,6 @@
 import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import { LLMResult } from "@langchain/core/outputs";
-import { query } from "../../../db";
+import { insertAgentCostLog } from "../../repositories";
 
 // Pricing per 1M tokens (USD), as of 2025
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -56,25 +56,18 @@ export class CostLoggingCallback extends BaseCallbackHandler {
     );
 
     try {
-      await query(
-        `INSERT INTO agent_cost_logs
-          (book_id, chapter_number, agent_node, model,
-           input_tokens, output_tokens, total_tokens,
-           input_cost_usd, output_cost_usd, total_cost_usd)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          this.ctx.bookId,
-          this.ctx.chapterNumber,
-          this.ctx.agentNode,
-          this.ctx.model,
-          inputTokens,
-          outputTokens,
-          totalTokens,
-          inputCost,
-          outputCost,
-          totalCost,
-        ]
-      );
+      await insertAgentCostLog({
+        bookId: this.ctx.bookId,
+        chapterNumber: this.ctx.chapterNumber,
+        agentNode: this.ctx.agentNode,
+        model: this.ctx.model,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        inputCostUsd: inputCost,
+        outputCostUsd: outputCost,
+        totalCostUsd: totalCost,
+      });
     } catch (err) {
       console.error("[cost] failed to log cost:", err);
     }
