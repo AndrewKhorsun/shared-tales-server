@@ -89,14 +89,23 @@ REQUIREMENTS:
 CHARACTER DEPTH:
 - Every POV character must have a visible personal want or fear beyond the plot —
   show it through small actions, memories, or reactions, not exposition
-- Include at least one concrete personal detail (a memory, habit, relationship, or regret)
 - Show the emotional cost of any discovery — not just the information itself
 - Avoid the "lone chosen hero" archetype: give characters flaws, doubts, or conflicting loyalties
 
+SENSORY GROUNDING (soft rule):
+- Each scene should contain at least one sensory detail
+  that is specific and involuntary — noticed by the character
+  without intention.
+
+DIALOGUE CONSTRAINT:
+- No character may speak a line whose sole function is
+  to explain the plot or theme to the POV character.
+- What the character says and what they want must not be identical.
+
 PACING & RHYTHM:
-- Mix sentence lengths deliberately: longer sentences for atmosphere and reflection,
-  short sentences for impact and shock
-- Do not cluster more than 4 short sentences in a row without a longer one to break the rhythm
+- Mix sentence lengths deliberately: longer for atmosphere,
+  short for impact.
+- Do not create monotonous chains of same-length sentences.
 
 MYSTERY & REVELATION:
 - Confirm at most ONE major suspicion per chapter — leave everything else ambiguous
