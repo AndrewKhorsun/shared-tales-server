@@ -148,10 +148,19 @@ SCENE CONSTRAINT:
 EDITOR_REQUIRED: true/false
 REASON: <revelation / turning point / regular chapter>
 
+CRITICAL: Your response is incomplete without these exact three lines at the end.
+Do not finish the plan without them.
+
 End your plan with exactly these three lines:
 CONFIRMED THIS CHAPTER: <one specific development>
 REMAINS UNKNOWN: <comma-separated list of open questions>
 SCENE FORBIDDEN: <what the writer must NOT confirm or state in any scene>
+
+CRITICAL: Do not truncate the plan. 
+The final three lines are mandatory. 
+If you are running low on space, 
+shorten scene descriptions — 
+but never omit CONFIRMED/REMAINS UNKNOWN/SCENE FORBIDDEN.
 
 Respond with the plan only, no additional commentary.`;
 
