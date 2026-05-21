@@ -91,8 +91,6 @@ Create a detailed plan for chapter ${chapter_number}. The plan must:
 - Advance the main conflict
 - Include specific scenes and character interactions
 - Write in ${language}
-- Each scene must reveal character through action or choice, not description
-- Plan at least one moment of personal cost or doubt for the POV character
 - Leave at least one story question open at the end of the chapter
 
 SCENE DESIGN:
@@ -100,6 +98,38 @@ SCENE DESIGN:
   - a clear intention (what the character wants in this scene)
   - friction or resistance (what blocks or complicates it)
   - a small outcome or shift (even partial, ambiguous, or unexpected)
+
+ARC DIVERSITY RULE:
+- Identify the dominant emotional pattern of the last 2 chapters
+  using EMOTIONAL ARC lines from previous summaries.
+- This chapter must resolve through a different emotional shape.
+- Valid shapes: escalation, unexpected stillness, misplaced victory,
+  cost without clarity, connection that complicates rather than confirms.
+- If no different shape is possible, flag it explicitly.
+
+GLOBAL ARC EVOLUTION:
+- Review all previous EMOTIONAL ARC lines in order.
+- Identify how the POV character's relationship to the central
+  conflict has shifted since chapter 1.
+- Each chapter must move that relationship forward —
+  the same emotional shape may repeat, but its meaning
+  must be different from the last time it appeared.
+- If no meaningful shift is possible, flag: "STAGNATION RISK"
+  and explain what needs to change at story level.
+
+SECONDARY CHARACTER CONSTRAINT:
+- Every named character who appears must have a visible want
+  that exists independently of the POV character's arc.
+- At least one secondary character must complicate or contradict
+  the POV character's current belief — not confirm it.
+
+WORLD PRESSURE:
+- Each chapter must contain one event that originates outside
+  the POV character's head.
+- This event must change what is possible, impossible, or
+  redirected for the character going forward — not just atmosphere.
+- The change may open new options or close existing ones,
+  but must be concrete enough to affect the next chapter.
 
 INFORMATION CONTROL RULES:
 ${
@@ -114,6 +144,9 @@ ${
 SCENE CONSTRAINT:
 - Scenes must NOT explicitly confirm anything outside the defined "CONFIRMED THIS CHAPTER"
 - If a scene risks accidentally revealing more, rewrite it to imply, not confirm
+
+EDITOR_REQUIRED: true/false
+REASON: <revelation / turning point / regular chapter>
 
 End your plan with exactly these three lines:
 CONFIRMED THIS CHAPTER: <one specific development>

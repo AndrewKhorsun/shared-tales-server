@@ -40,7 +40,12 @@ export async function editorNode(
       chapterNumber: chapter_number,
       model: "claude-haiku-4-5",
     });
-    const bestDraft = await pickBestDraft(all_drafts, plan ?? "", book_context.writing_style, pickerCallback);
+    const bestDraft = await pickBestDraft(
+      all_drafts,
+      plan ?? "",
+      book_context.writing_style,
+      pickerCallback
+    );
     console.log("[editor] best draft selected, approved");
     return {
       draft: bestDraft,
@@ -48,6 +53,11 @@ export async function editorNode(
       editor_feedback: null,
     };
   }
+
+  const previous_summaries =
+    book_context.generation_settings?.chapter_summaries
+      ?.map((s) => `Chapter ${s.chapter}: ${s.summary}`)
+      .join("\n") ?? "No previous chapters yet";
 
   emitter?.emit("progress", {
     stage: "editor",
@@ -58,6 +68,7 @@ export async function editorNode(
 
 WRITING STYLE EXPECTED: ${book_context.writing_style}
 CHAPTER PLAN (what should happen): ${plan}
+PREVIOUS CHAPTERS SUMMARIES: ${previous_summaries}
 
 DRAFT TO EVALUATE:
 ${draft}
@@ -75,12 +86,12 @@ INFORMATION CONTROL violations always cause REJECT, even if everything else is g
    - Is sentence rhythm varied? Monotonous short-sentence chains are a flaw.
 
 3. LENGTH (critical)
-   - If the chapter feels clearly underdeveloped or rushes through events without
-     expansion → REJECT, reason: "too short or underdeveloped".
+   - Target: 800–2500 words.
+   - REJECT only if below 800 words or if major planned scenes are missing entirely.
+   - "Underdeveloped" alone is not sufficient for REJECT — note as weakness instead.
 
 4. CHARACTER DEPTH
    - Do characters show personal motivation, fear, or cost beyond advancing the plot?
-   - Is there at least one concrete personal detail (memory, habit, relationship, regret)?
 
 5. INFORMATION CONTROL (critical — REJECT overrides everything)
    - Extract the "CONFIRMED THIS CHAPTER" line from the plan.
@@ -98,6 +109,21 @@ INFORMATION CONTROL violations always cause REJECT, even if everything else is g
 6. PACING OVERLOAD
    - If major events happen too rapidly without reflection, reaction, or transition
      between them → REJECT, reason: "pacing overload".
+
+8. STRUCTURAL REPETITION (causes REJECT)
+   - Summarize the emotional arc of this chapter in one sentence:
+     what did the character attempt, and how did it end?
+   - Compare to EMOTIONAL ARC lines from previous summaries.
+   - If the pattern matches for the 3rd consecutive chapter → REJECT,
+     reason: "arc repetition"
+   - Theme repetition is acceptable. Emotional shape repetition is not.
+
+9. SECONDARY CHARACTER DEPTH (flag, not auto-REJECT)
+   - For each named secondary character: does the chapter show them
+     wanting something beyond serving the POV character's arc?
+   - Does at least one secondary character complicate rather than
+     confirm the POV character's belief?
+   - If all secondary characters only reflect or confirm → note as weakness.
 
 Respond in exactly one of these two formats:
 

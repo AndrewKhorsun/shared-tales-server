@@ -14,6 +14,15 @@ export async function summarizerNode(
   const bookId = getBookId(config);
   const chapterId = getChapterId(config);
 
+  if (!draft) {
+    console.warn(`[summarizer] draft is empty for chapter=${chapter_number}`);
+    emitter?.emit("error", {
+      stage: "summarizer",
+      message: `Chapter ${chapter_number} could not be saved: draft is empty.`,
+    });
+    return { chapter_summary: "" };
+  }
+
   console.log(`[summarizer] chapter=${chapter_number}`);
 
   emitter?.emit("progress", {
@@ -50,7 +59,15 @@ UNCERTAINTY HANDLING:
 
 Write in ${book_context.language}. Do not add commentary.
 
-Summary:`;
+Summary:
+
+After the summary, add exactly these three lines:
+
+EMOTIONAL ARC: <what the POV character attempted and how it ended emotionally — one sentence>
+
+SECONDARY CHARACTERS: <for each named character who appeared: name + what they visibly wanted in this chapter>
+
+CORE STATE: <list of active unresolved story engines, max 3–5 items — only what remains genuinely open after this chapter, using neutral language without interpretation>`;
 
   const costCallback = new CostLoggingCallback({
     agentNode: "summarizer",
@@ -62,7 +79,10 @@ Summary:`;
   const summary = extractText(response);
 
   if (bookId && chapterId) {
-    await repo.updateChapter(chapterId, bookId, { content: draft ?? undefined, status: "draft" });
+    await repo.updateChapter(chapterId, bookId, {
+      content: draft,
+      status: "published",
+    });
     await repo.appendChapterSummary(bookId, { chapter: chapter_number, summary });
 
     console.log(`[summarizer] saved chapter=${chapterId} to DB`);
