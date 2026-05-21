@@ -28,6 +28,7 @@ export interface CreateBookPlanData {
   writing_style: string;
   language: BookLanguage;
   generation_settings: GenerationSettings;
+  total_chapters?: number;
 }
 
 export async function createBookPlan(
@@ -38,8 +39,9 @@ export async function createBookPlan(
   const executor = client ?? pool;
   const result = await executor.query<BookPlan>(
     `INSERT INTO book_plans
-       (book_id, genre, target_audience, writing_style, language, generation_settings)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (book_id, genre, target_audience, writing_style, language, generation_settings,
+        total_chapters)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
     [
       bookId,
@@ -48,6 +50,7 @@ export async function createBookPlan(
       data.writing_style,
       data.language,
       JSON.stringify(data.generation_settings ?? {}),
+      data.total_chapters ?? null,
     ]
   );
   return result.rows[0] ?? null;
@@ -83,7 +86,10 @@ export async function appendChapterSummary(
 export async function updateBookPlan(
   bookId: number,
   data: Partial<
-    Pick<BookPlan, "genre" | "target_audience" | "writing_style" | "language"> & {
+    Pick<
+      BookPlan,
+      "genre" | "target_audience" | "writing_style" | "language" | "total_chapters"
+    > & {
       generation_settings: GenerationSettings;
     }
   >,
@@ -97,8 +103,9 @@ export async function updateBookPlan(
          writing_style = COALESCE($3, writing_style),
          language = COALESCE($4, language),
          generation_settings = COALESCE($5, generation_settings),
+         total_chapters = $6,
          updated_at = CURRENT_TIMESTAMP
-     WHERE book_id = $6
+     WHERE book_id = $7
      RETURNING *`,
     [
       data.genre ?? null,
@@ -106,6 +113,7 @@ export async function updateBookPlan(
       data.writing_style ?? null,
       data.language ?? null,
       data.generation_settings ? JSON.stringify(data.generation_settings) : null,
+      data.total_chapters ?? null,
       bookId,
     ]
   );

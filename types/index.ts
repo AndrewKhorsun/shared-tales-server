@@ -89,6 +89,7 @@ export interface BookPlan {
   writing_style: string;
   generation_settings: GenerationSettings;
   language: BookLanguage;
+  total_chapters?: number;
   created_at: Date;
   updated_at: Date;
 }

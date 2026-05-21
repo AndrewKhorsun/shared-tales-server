@@ -53,7 +53,7 @@ router.post(
       const exists = await repo.bookPlanExists(bookId);
       if (exists) throw new AppError(409, "Book plan already exists");
 
-      const { genre, target_audience, writing_style, language, generation_settings } =
+      const { genre, target_audience, writing_style, language, generation_settings, total_chapters } =
         req.body as CreateBookPlanDto;
 
       const bookPlan = await repo.createBookPlan(bookId, {
@@ -62,6 +62,7 @@ router.post(
         writing_style,
         language,
         generation_settings: generation_settings ?? ({} as GenerationSettings),
+        total_chapters,
       });
 
       res.status(201).json({
@@ -90,7 +91,7 @@ router.put(
       const book = await repo.findBookByIdAndAuthor(bookId, req.user.id);
       if (!book) throw new AppError(404, "Book not found");
 
-      const { genre, target_audience, writing_style, language, generation_settings } =
+      const { genre, target_audience, writing_style, language, generation_settings, total_chapters } =
         req.body as UpdateBookPlanDto;
 
       const bookPlan = await repo.updateBookPlan(bookId, {
@@ -99,6 +100,7 @@ router.put(
         writing_style,
         language,
         generation_settings,
+        total_chapters,
       });
 
       if (!bookPlan) throw new AppError(404, "Book plan not found");

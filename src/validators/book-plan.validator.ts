@@ -68,6 +68,7 @@ export const createBookPlanSchema = z.object({
     "greek",
   ]),
   generation_settings: generationSettingsSchema.optional(),
+  total_chapters: z.number().int().min(1).max(100).optional(),
 });
 
 export const updateBookPlanSchema = createBookPlanSchema.partial();

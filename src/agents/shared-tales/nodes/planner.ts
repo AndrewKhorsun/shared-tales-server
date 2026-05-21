@@ -28,7 +28,9 @@ export async function plannerNode(
     message: "Generating chapter plan...",
   });
 
-  const { genre, target_audience, writing_style, generation_settings, language } = book_context;
+  const {
+    genre, target_audience, writing_style, generation_settings, language, total_chapters,
+  } = book_context;
 
   const previousChapters =
     generation_settings?.chapter_summaries
@@ -67,6 +69,23 @@ export async function plannerNode(
     ? `Resolution direction: ${generation_settings.plot_arc.resolution}`
     : "Resolution direction: Not specified — determine a suitable resolution direction based on the plot.";
 
+  const bookProgress = total_chapters
+    ? `BOOK PROGRESS: Chapter ${chapter_number} of ${total_chapters} ` +
+      `(${Math.round((chapter_number / total_chapters) * 100)}%)`
+    : null;
+
+  const isFinalChapter =
+    total_chapters !== null && total_chapters !== undefined && chapter_number === total_chapters;
+
+  const narrativeStageRules = total_chapters
+    ? `NARRATIVE STAGE RULES (based on current progress):
+- 0–25%: establish world, characters, central conflict — no major revelations yet
+- 25–60%: escalate conflict, deepen character relationships, advance open hooks
+- 60–85%: major revelations, turning points, converge open threads
+- 85–100%: resolve main conflict, close all major hooks, emotional closure
+${isFinalChapter ? "- THIS IS THE FINAL CHAPTER: all REMAINS UNKNOWN must be resolved, introduce no new hooks" : ""}`
+    : null;
+
   const prompt = `You are a creative writing planner. Create a detailed chapter plan.
 
 BOOK CONTEXT:
@@ -93,6 +112,8 @@ OPEN STORY HOOKS (must be tracked, some must advance this chapter):
 ${openHooks}
 
 CURRENT CHAPTER: ${chapter_number}
+${bookProgress ?? ""}
+${narrativeStageRules ?? ""}
 ${chapter_plan_hint ? `AUTHOR'S HINT: ${chapter_plan_hint}` : ""}
 ${user_feedback ? `REVISION FEEDBACK: ${user_feedback}` : ""}
 
@@ -161,11 +182,10 @@ CONFIRMED THIS CHAPTER: <one specific development>
 REMAINS UNKNOWN: <comma-separated list of open questions>
 SCENE FORBIDDEN: <what the writer must NOT confirm or state in any scene>
 
-CRITICAL: Do not truncate the plan. 
-The final three lines are mandatory. 
-If you are running low on space, 
-shorten scene descriptions — 
-but never omit CONFIRMED/REMAINS UNKNOWN/SCENE FORBIDDEN.
+CRITICAL: Do not truncate the plan.
+All three lines (CONFIRMED THIS CHAPTER, REMAINS UNKNOWN, SCENE FORBIDDEN) are mandatory.
+If you are running low on space, shorten scene descriptions —
+but never omit these three lines.
 
 Respond with the plan only, no additional commentary.`;
 
