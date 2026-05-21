@@ -26,7 +26,7 @@ export async function editorNode(
   const bookId = getBookId(config);
 
   // Situation 3: max attempts reached — pick the best draft
-  if (write_attempts >= 3) {
+  if (write_attempts >= 1) {
     console.log(`[editor] max attempts reached, picking best draft from ${all_drafts.length}`);
 
     emitter?.emit("progress", {
@@ -86,9 +86,8 @@ INFORMATION CONTROL violations always cause REJECT, even if everything else is g
    - Is sentence rhythm varied? Monotonous short-sentence chains are a flaw.
 
 3. LENGTH (critical)
-   - Target: 800–2500 words.
-   - REJECT only if below 800 words or if major planned scenes are missing entirely.
-   - "Underdeveloped" alone is not sufficient for REJECT — note as weakness instead.
+   - Target: 1500–2500 words.
+   - REJECT if below 1500 words.
 
 4. CHARACTER DEPTH
    - Do characters show personal motivation, fear, or cost beyond advancing the plot?
@@ -96,15 +95,11 @@ INFORMATION CONTROL violations always cause REJECT, even if everything else is g
 5. INFORMATION CONTROL (critical — REJECT overrides everything)
    - Extract the "CONFIRMED THIS CHAPTER" line from the plan.
    - Extract the "SCENE FORBIDDEN" line from the plan.
-   - List every major mystery or truth the draft confirms.
    - If the draft confirms anything beyond "CONFIRMED THIS CHAPTER"
      → REJECT, reason: "exceeds allowed revelations".
    - If the draft directly states or confirms anything listed in "SCENE FORBIDDEN"
      → REJECT, reason: "forbidden reveal".
    - Does the chapter end with at least one open question?
-   - Do antagonists or AI characters avoid explicitly naming themselves or their nature?
-     Forbidden: "I am the system", "I control the city", "I am the AI" — or equivalents
-     → if present, REJECT.
 
 6. PACING OVERLOAD
    - If major events happen too rapidly without reflection, reaction, or transition
@@ -124,6 +119,12 @@ INFORMATION CONTROL violations always cause REJECT, even if everything else is g
    - Does at least one secondary character complicate rather than
      confirm the POV character's belief?
    - If all secondary characters only reflect or confirm → note as weakness.
+
+FORBIDDEN PHRASE PATTERN:
+Do not write sentences where the POV character 
+explicitly states the theme of the chapter as a conclusion.
+The character may notice facts, ask questions, feel sensations —
+but must never summarize what the story means.
 
 Respond in exactly one of these two formats:
 

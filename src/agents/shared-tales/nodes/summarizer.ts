@@ -67,7 +67,18 @@ EMOTIONAL ARC: <what the POV character attempted and how it ended emotionally �
 
 SECONDARY CHARACTERS: <for each named character who appeared: name + what they visibly wanted in this chapter>
 
-CORE STATE: <list of active unresolved story engines, max 3–5 items — only what remains genuinely open after this chapter, using neutral language without interpretation>`;
+CORE STATE: <list of active unresolved story engines, max 3–5 items — only what remains genuinely open after this chapter, using neutral language without interpretation>
+
+HOOK STATUS: <for each item in REMAINS UNKNOWN from previous chapters — 
+  state whether it was advanced, partially revealed, or still open in this chapter.
+  Format: "hook name: status". 
+  Only include hooks that were touched in this chapter.
+  If none were touched, write "none advanced">
+
+NEW HOOKS: <list any new unresolved questions or plot threads 
+  introduced in this chapter that did not exist before.
+  If none, write "none">
+`;
 
   const costCallback = new CostLoggingCallback({
     agentNode: "summarizer",
@@ -76,14 +87,30 @@ CORE STATE: <list of active unresolved story engines, max 3–5 items — only w
     model: "claude-haiku-4-5",
   });
   const response = await llm.invoke(prompt, { callbacks: [costCallback] });
-  const summary = extractText(response);
+  const fullOutput = extractText(response);
+
+  const newHooksMatch = fullOutput.match(/NEW HOOKS:\s*([\s\S]+?)(?:\n\n|$)/);
+  const newHooksRaw = newHooksMatch?.[1]?.trim() ?? "none";
+  const newHooks =
+    newHooksRaw === "none"
+      ? []
+      : newHooksRaw
+          .split("\n")
+          .map((h) => h.replace(/^[-*•]\s*/, "").trim())
+          .filter(Boolean);
+
+  const summary = fullOutput.split(/\nEMOTIONAL ARC:/)[0]?.trim() ?? "";
 
   if (bookId && chapterId) {
     await repo.updateChapter(chapterId, bookId, {
       content: draft,
       status: "published",
     });
-    await repo.appendChapterSummary(bookId, { chapter: chapter_number, summary });
+    await repo.appendChapterSummary(bookId, {
+      chapter: chapter_number,
+      summary,
+      new_hooks: newHooks,
+    });
 
     console.log(`[summarizer] saved chapter=${chapterId} to DB`);
   }

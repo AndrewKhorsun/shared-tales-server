@@ -23,6 +23,7 @@ const generationSettingsSchema = z.object({
       z.object({
         chapter: z.number().int().positive(),
         summary: z.string().min(1),
+        new_hooks: z.array(z.string()).default([]),
       })
     )
     .default([]),
@@ -73,4 +74,8 @@ export const updateBookPlanSchema = createBookPlanSchema.partial();
 
 export type CreateBookPlanDto = z.infer<typeof createBookPlanSchema>;
 export type UpdateBookPlanDto = z.infer<typeof updateBookPlanSchema>;
-export type { GenerationSettings, BookLanguage, GenerationSettingsCharacter as Character } from "../../types";
+export type {
+  GenerationSettings,
+  BookLanguage,
+  GenerationSettingsCharacter as Character,
+} from "../../types";

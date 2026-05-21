@@ -40,11 +40,31 @@ export interface Book {
 }
 
 export type BookLanguage =
-  | "english" | "ukrainian" | "spanish" | "french" | "german"
-  | "italian" | "portuguese" | "polish" | "dutch" | "czech"
-  | "swedish" | "norwegian" | "danish" | "finnish" | "turkish"
-  | "japanese" | "korean" | "chinese" | "arabic" | "hindi"
-  | "indonesian" | "vietnamese" | "thai" | "romanian" | "hungarian"
+  | "english"
+  | "ukrainian"
+  | "spanish"
+  | "french"
+  | "german"
+  | "italian"
+  | "portuguese"
+  | "polish"
+  | "dutch"
+  | "czech"
+  | "swedish"
+  | "norwegian"
+  | "danish"
+  | "finnish"
+  | "turkish"
+  | "japanese"
+  | "korean"
+  | "chinese"
+  | "arabic"
+  | "hindi"
+  | "indonesian"
+  | "vietnamese"
+  | "thai"
+  | "romanian"
+  | "hungarian"
   | "greek";
 
 export interface GenerationSettingsCharacter {

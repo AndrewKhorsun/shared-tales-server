@@ -32,8 +32,15 @@ export async function plannerNode(
 
   const previousChapters =
     generation_settings?.chapter_summaries
-      ?.map((s) => `Chapter ${s.chapter}: ${s.summary}`)
+      ?.slice(-5)
+      .map((s) => `Chapter ${s.chapter}: ${s.summary}`)
       .join("\n") ?? "No previous chapters yet";
+
+  const openHooks =
+    generation_settings?.chapter_summaries
+      ?.flatMap((s) => s.new_hooks ?? [])
+      .filter(Boolean)
+      .join(", ") ?? "No open hooks yet";
 
   const characters =
     generation_settings?.characters
@@ -81,6 +88,9 @@ ${characters}
 
 PREVIOUS CHAPTERS:
 ${previousChapters}
+
+OPEN STORY HOOKS (must be tracked, some must advance this chapter):
+${openHooks}
 
 CURRENT CHAPTER: ${chapter_number}
 ${chapter_plan_hint ? `AUTHOR'S HINT: ${chapter_plan_hint}` : ""}
@@ -132,21 +142,16 @@ WORLD PRESSURE:
   but must be concrete enough to affect the next chapter.
 
 INFORMATION CONTROL RULES:
-${
-  chapter_number <= 3
-    ? "- This is an early chapter: do NOT explain the nature of the central system or antagonist"
-    : "- Limit major revelations — do not resolve more than one core mystery per chapter"
-}
-- Each chapter may confirm at most ONE major suspicion — decide in advance which one
-- Prefer partial understanding, conflicting interpretations, or uncertainty over clear answers
+- Each chapter may confirm at most ONE major story development — decide in advance which one
+- Pace revelations according to genre conventions: 
+  mysteries and thrillers prefer ambiguity, 
+  action and fantasy may reveal more directly,
+  literary fiction prefers implication over statement
 - If the author's hint signals a finale or climax, these limits may be relaxed
 
 SCENE CONSTRAINT:
-- Scenes must NOT explicitly confirm anything outside the defined "CONFIRMED THIS CHAPTER"
-- If a scene risks accidentally revealing more, rewrite it to imply, not confirm
-
-EDITOR_REQUIRED: true/false
-REASON: <revelation / turning point / regular chapter>
+- Scenes must NOT confirm anything outside the defined "CONFIRMED THIS CHAPTER"
+- If a scene risks revealing more than intended, imply rather than state
 
 CRITICAL: Your response is incomplete without these exact three lines at the end.
 Do not finish the plan without them.

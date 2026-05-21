@@ -56,6 +56,7 @@ export async function createBookPlan(
 export interface ChapterSummaryEntry {
   chapter: number;
   summary: string;
+  new_hooks?: string[];
 }
 
 export async function appendChapterSummary(
