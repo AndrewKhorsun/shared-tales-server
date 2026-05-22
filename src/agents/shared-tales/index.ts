@@ -2,6 +2,7 @@ import EventEmitter from "events";
 import { AppError } from "../../middleware/error.middleware";
 import { createBookPlanSchema, CreateBookPlanDto } from "../../validators/book-plan.validator";
 import { chapterGraph } from "./graph";
+import { checkpointer } from "../checkpointer";
 import * as repo from "../../repositories";
 
 export async function runChapterGeneration(bookId: number, chapterId: number, hint?: string) {
@@ -54,9 +55,9 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
     throw new AppError(409, "Chapter generation is already in progress");
   }
 
-  setImmediate(() => {
-    chapterGraph
-      .invoke(
+  setImmediate(async () => {
+    try {
+      await chapterGraph.invoke(
         {
           book_context: bookContext,
           chapter_number: chapter.order_index,
@@ -65,11 +66,20 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
           plan: null,
         },
         { configurable: { thread_id: threadId, emitter, bookId, chapterId } }
-      )
-      .catch((err) => {
-        console.error(`[chapter-gen] error bookId=${bookId} chapterId=${chapterId}`, err);
-        emitter.emit("error", { message: err.message });
-      });
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[chapter-gen] error bookId=${bookId} chapterId=${chapterId}`, err);
+
+      // Planner failed — delete checkpoint so user can retry from scratch
+      try {
+        await checkpointer.deleteThread(threadId);
+      } catch (resetErr) {
+        console.error("[chapter-gen] failed to delete checkpoint", resetErr);
+      }
+
+      emitter.emit("error", { stage: "planner", message });
+    }
   });
 
   return { status: "started", emitter };
@@ -100,9 +110,26 @@ export async function sendFeedback(
 
   chapterGraph
     .invoke(null, { configurable: { thread_id: threadId, emitter, bookId, chapterId } })
-    .catch((err) => {
+    .catch(async (err) => {
+      const message = err instanceof Error ? err.message : String(err);
       console.error(`[feedback] error bookId=${bookId} chapterId=${chapterId}`, err);
-      emitter.emit("error", { message: err.message });
+
+      // Writer/editor failed — roll back to plan approval so user can retry writing
+      const failedState = await chapterGraph.getState({
+        configurable: { thread_id: threadId },
+      });
+      const plan = failedState.values?.plan ?? null;
+      try {
+        await chapterGraph.updateState(
+          { configurable: { thread_id: threadId } },
+          { plan_approved: false },
+          "planner_interrupt"
+        );
+      } catch (resetErr) {
+        console.error("[feedback] failed to roll back graph state", resetErr);
+      }
+
+      emitter.emit("error", { stage: "writer", message, plan });
     });
 
   return { status: "started", emitter };

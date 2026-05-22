@@ -53,6 +53,12 @@ export default [
         module: "readonly",
         require: "readonly",
         exports: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        setImmediate: "readonly",
+        clearImmediate: "readonly",
       },
     },
     plugins: {

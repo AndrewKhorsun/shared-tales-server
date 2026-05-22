@@ -3,6 +3,7 @@ import { extractText, getEmitter, getBookId } from "../utils";
 import { writerLlm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
+import { withRetry } from "../../../utils/retry";
 
 export async function writerNode(
   state: typeof ChapterState.State,
@@ -132,7 +133,9 @@ PLAN CONSTRAINTS:
 
 Write the chapter now:`;
 
-  const response = await writerLlm.invoke(prompt, { callbacks: [costCallback] });
+  const response = await withRetry(() => writerLlm.invoke(prompt, { callbacks: [costCallback] }), {
+    onRetry: (attempt, err) => console.warn(`[writer] retry ${attempt} after error: ${err}`),
+  });
   const draft = extractText(response);
 
   console.log(`[writer] draft ready (${draft.length} chars)`);

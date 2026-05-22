@@ -3,6 +3,7 @@ import { extractText, getBookId, getChapterId, getEmitter } from "../utils";
 import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
+import { withRetry } from "../../../utils/retry";
 import * as repo from "../../../repositories";
 
 export async function summarizerNode(
@@ -86,7 +87,9 @@ NEW HOOKS: <list any new unresolved questions or plot threads
     chapterNumber: chapter_number,
     model: "claude-haiku-4-5",
   });
-  const response = await llm.invoke(prompt, { callbacks: [costCallback] });
+  const response = await withRetry(() => llm.invoke(prompt, { callbacks: [costCallback] }), {
+    onRetry: (attempt, err) => console.warn(`[summarizer] retry ${attempt} after error: ${err}`),
+  });
   const fullOutput = extractText(response);
 
   const newHooksMatch = fullOutput.match(/NEW HOOKS:\s*([\s\S]+?)(?:\n\n|$)/);
