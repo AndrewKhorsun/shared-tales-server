@@ -16,16 +16,18 @@ function isOverloaded(err: unknown): boolean {
   return false;
 }
 
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const {
-    maxAttempts = 5,
-    baseDelayMs = 2000,
-    shouldRetry = isOverloaded,
-    onRetry,
-  } = options;
+export function friendlyErrorMessage(err: unknown): string {
+  if (err instanceof Error && isOverloaded(err)) {
+    return "AI service is temporarily overloaded. Please try again in a moment.";
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+}
+
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
+  const { maxAttempts = 3, baseDelayMs = 2000, shouldRetry = isOverloaded, onRetry } = options;
 
   let lastErr: unknown;
 
@@ -34,6 +36,10 @@ export async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastErr = err;
+      const isErr = err instanceof Error;
+      console.log(
+        `[retry] attempt=${attempt} isError=${isErr} message=${isErr ? (err as Error).message.slice(0, 120) : String(err).slice(0, 120)} shouldRetry=${shouldRetry(err)}`
+      );
 
       if (attempt === maxAttempts || !shouldRetry(err)) {
         throw err;

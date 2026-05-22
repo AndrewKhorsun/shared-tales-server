@@ -23,6 +23,10 @@ export async function plannerNode(
   console.log(
     `[planner] chapter=${chapter_number} hint=${chapter_plan_hint ? `"${chapter_plan_hint.slice(0, 60)}..."` : "none"} revision=${!!user_feedback}`
   );
+  console.log(`[planner] book_context keys: ${Object.keys(book_context).join(", ")}`);
+  console.log(
+    `[planner] total_chapters=${book_context.total_chapters ?? "not set"} language=${book_context.language}`
+  );
 
   emitter?.emit("progress", {
     stage: "planner",
@@ -238,6 +242,10 @@ If you are running low on space, shorten scene descriptions —
 but never omit these three lines.
 
 Respond with the plan only, no additional commentary.`;
+
+  console.log(`[planner] prompt length: ${prompt.length} chars`);
+  console.log(`[planner] prompt preview:\n---\n${prompt.slice(0, 300)}\n---`);
+  console.log("[planner] calling LLM...");
 
   const response = await withRetry(() => llm.invoke(prompt, { callbacks: [costCallback] }), {
     onRetry: (attempt, err) => console.warn(`[planner] retry ${attempt} after error: ${err}`),

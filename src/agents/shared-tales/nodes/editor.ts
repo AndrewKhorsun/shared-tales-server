@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getEmitter, getBookId } from "../utils";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
+import { withRetry } from "../../../utils/retry";
 
 const EditorOutputSchema = z.object({
   approved: z.boolean().describe("Whether the draft meets quality standards"),
@@ -146,7 +147,9 @@ Fix:
     chapterNumber: chapter_number,
     model: "claude-haiku-4-5",
   });
-  const result = await editorLlm.invoke(prompt, { callbacks: [editorCallback] });
+  const result = await withRetry(() => editorLlm.invoke(prompt, { callbacks: [editorCallback] }), {
+    onRetry: (attempt, err) => console.warn(`[editor] retry ${attempt} after error: ${err}`),
+  });
 
   if (result.approved) {
     console.log(`[editor] attempt=${write_attempts} approved`);
@@ -185,7 +188,13 @@ ${draftsText}
 
 Respond with only the number of the best draft (1, 2, or 3). Nothing else.`;
 
-  const result = await pickerLlm.invoke(prompt, { callbacks: callback ? [callback] : [] });
+  const result = await withRetry(
+    () => pickerLlm.invoke(prompt, { callbacks: callback ? [callback] : [] }),
+    {
+      onRetry: (attempt, err) =>
+        console.warn(`[editor/picker] retry ${attempt} after error: ${err}`),
+    }
+  );
   const index = result.best_draft_index - 1;
   return drafts[index] ?? drafts[drafts.length - 1] ?? "";
 }

@@ -6,7 +6,6 @@ export const llm = new ChatAnthropic({
   model: "claude-haiku-4-5",
   temperature: 0.7,
   maxTokens: 8192,
-  maxRetries: 0,
 });
 
 export const writerLlm = new ChatAnthropic({
@@ -14,5 +13,4 @@ export const writerLlm = new ChatAnthropic({
   model: "claude-sonnet-4-5",
   temperature: 0.8,
   maxTokens: 8192,
-  maxRetries: 0,
 });
