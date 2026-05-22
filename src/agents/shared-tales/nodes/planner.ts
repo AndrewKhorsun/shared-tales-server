@@ -4,6 +4,7 @@ import { extractText, getEmitter, getBookId } from "../utils";
 import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
+import { withRetry } from "../../../utils/retry";
 
 export async function plannerNode(
   state: typeof ChapterState.State,
@@ -238,7 +239,9 @@ but never omit these three lines.
 
 Respond with the plan only, no additional commentary.`;
 
-  const response = await llm.invoke(prompt, { callbacks: [costCallback] });
+  const response = await withRetry(() => llm.invoke(prompt, { callbacks: [costCallback] }), {
+    onRetry: (attempt, err) => console.warn(`[planner] retry ${attempt} after error: ${err}`),
+  });
   const plan = extractText(response);
 
   emitter?.emit("plan_ready", { plan });
