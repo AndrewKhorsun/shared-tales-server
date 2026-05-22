@@ -24,6 +24,20 @@ const generationSettingsSchema = z.object({
         chapter: z.number().int().positive(),
         summary: z.string().min(1),
         new_hooks: z.array(z.string()).default([]),
+        emotional_arc: z.string().optional(),
+        core_state: z.array(z.string()).optional(),
+        secondary_characters: z
+          .array(z.object({ name: z.string(), visible_want: z.string() }))
+          .optional(),
+        hook_status: z
+          .array(
+            z.object({
+              hook: z.string(),
+              status: z.enum(["advanced", "partially_revealed", "still_open"]),
+              note: z.string(),
+            })
+          )
+          .optional(),
       })
     )
     .default([]),

@@ -31,10 +31,19 @@ export async function writerNode(
 
   const { genre, writing_style, language, generation_settings } = book_context;
 
-  const previousChapters =
-    generation_settings?.chapter_summaries
-      ?.map((s) => `Chapter ${s.chapter}: ${s.summary}`)
-      .join("\n") ?? "No previous chapters yet";
+  const summaries = generation_settings?.chapter_summaries ?? [];
+  const previousChapters = summaries.length > 0
+    ? summaries.map((s) => {
+        const lines = [`Chapter ${s.chapter}: ${s.summary}`];
+        if (s.emotional_arc) lines.push(`  Emotional arc: ${s.emotional_arc}`);
+        return lines.join("\n");
+      }).join("\n\n")
+    : "No previous chapters yet";
+
+  const lastSummary = summaries[summaries.length - 1];
+  const activeThreads = lastSummary?.core_state?.length
+    ? `\nACTIVE STORY THREADS ENTERING THIS CHAPTER:\n${lastSummary.core_state.map((t) => `- ${t}`).join("\n")}`
+    : "";
 
   const characters =
     generation_settings?.characters
@@ -61,7 +70,7 @@ ${worldSection}
 ${atmosphereSection}
 
 STORY SO FAR:
-${previousChapters || "This is the first chapter."}
+${previousChapters || "This is the first chapter."}${activeThreads}
 
 CHARACTERS:
 ${characters}

@@ -3,6 +3,7 @@ import { AppError } from "../../middleware/error.middleware";
 import { createBookPlanSchema, CreateBookPlanDto } from "../../validators/book-plan.validator";
 import { chapterGraph } from "./graph";
 import { checkpointer } from "../checkpointer";
+import { friendlyErrorMessage } from "../../utils/retry";
 import * as repo from "../../repositories";
 
 export async function runChapterGeneration(bookId: number, chapterId: number, hint?: string) {
@@ -68,17 +69,35 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
         { configurable: { thread_id: threadId, emitter, bookId, chapterId } }
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = friendlyErrorMessage(err);
       console.error(`[chapter-gen] error bookId=${bookId} chapterId=${chapterId}`, err);
 
-      // Planner failed — delete checkpoint so user can retry from scratch
-      try {
-        await checkpointer.deleteThread(threadId);
-      } catch (resetErr) {
-        console.error("[chapter-gen] failed to delete checkpoint", resetErr);
-      }
+      const failedState = await chapterGraph.getState({
+        configurable: { thread_id: threadId },
+      });
+      const plan = failedState.values?.plan ?? null;
 
-      emitter.emit("error", { stage: "planner", message });
+      if (plan) {
+        // Planner succeeded but writer/editor failed — roll back to plan approval
+        try {
+          await chapterGraph.updateState(
+            { configurable: { thread_id: threadId } },
+            { plan_approved: false },
+            "planner_interrupt"
+          );
+        } catch (resetErr) {
+          console.error("[chapter-gen] failed to roll back graph state", resetErr);
+        }
+        emitter.emit("error", { stage: "writer", message, plan });
+      } else {
+        // Planner itself failed — delete checkpoint so user can retry from scratch
+        try {
+          await checkpointer.deleteThread(threadId);
+        } catch (resetErr) {
+          console.error("[chapter-gen] failed to delete checkpoint", resetErr);
+        }
+        emitter.emit("error", { stage: "planner", message });
+      }
     }
   });
 
@@ -111,7 +130,7 @@ export async function sendFeedback(
   chapterGraph
     .invoke(null, { configurable: { thread_id: threadId, emitter, bookId, chapterId } })
     .catch(async (err) => {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = friendlyErrorMessage(err);
       console.error(`[feedback] error bookId=${bookId} chapterId=${chapterId}`, err);
 
       // Writer/editor failed — roll back to plan approval so user can retry writing

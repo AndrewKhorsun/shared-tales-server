@@ -23,6 +23,10 @@ export async function plannerNode(
   console.log(
     `[planner] chapter=${chapter_number} hint=${chapter_plan_hint ? `"${chapter_plan_hint.slice(0, 60)}..."` : "none"} revision=${!!user_feedback}`
   );
+  console.log(`[planner] book_context keys: ${Object.keys(book_context).join(", ")}`);
+  console.log(
+    `[planner] total_chapters=${book_context.total_chapters ?? "not set"} language=${book_context.language}`
+  );
 
   emitter?.emit("progress", {
     stage: "planner",
@@ -32,17 +36,28 @@ export async function plannerNode(
   const { genre, target_audience, writing_style, generation_settings, language, total_chapters } =
     book_context;
 
-  const previousChapters =
-    generation_settings?.chapter_summaries
-      ?.slice(-5)
-      .map((s) => `Chapter ${s.chapter}: ${s.summary}`)
-      .join("\n") ?? "No previous chapters yet";
+  const summaries = generation_settings?.chapter_summaries ?? [];
 
-  const openHooks =
-    generation_settings?.chapter_summaries
-      ?.flatMap((s) => s.new_hooks ?? [])
-      .filter(Boolean)
-      .join(", ") ?? "No open hooks yet";
+  const previousChapters = summaries.length > 0
+    ? summaries.slice(-5).map((s) => {
+        const lines = [`Chapter ${s.chapter}: ${s.summary}`];
+        if (s.emotional_arc) lines.push(`  Emotional arc: ${s.emotional_arc}`);
+        if (s.core_state?.length) lines.push(`  Active story threads: ${s.core_state.join("; ")}`);
+        return lines.join("\n");
+      }).join("\n\n")
+    : "No previous chapters yet";
+
+  const advancedHooks = new Set(
+    summaries.flatMap((s) =>
+      (s.hook_status ?? [])
+        .filter((h) => h.status === "advanced")
+        .map((h) => h.hook)
+    )
+  );
+  const openHooks = summaries
+    .flatMap((s) => s.new_hooks ?? [])
+    .filter((h) => h && !advancedHooks.has(h))
+    .join(", ") || "No open hooks yet";
 
   const characters =
     generation_settings?.characters
@@ -238,6 +253,10 @@ If you are running low on space, shorten scene descriptions —
 but never omit these three lines.
 
 Respond with the plan only, no additional commentary.`;
+
+  console.log(`[planner] prompt length: ${prompt.length} chars`);
+  console.log(`[planner] prompt preview:\n---\n${prompt.slice(0, 300)}\n---`);
+  console.log("[planner] calling LLM...");
 
   const response = await withRetry(() => llm.invoke(prompt, { callbacks: [costCallback] }), {
     onRetry: (attempt, err) => console.warn(`[planner] retry ${attempt} after error: ${err}`),

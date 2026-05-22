@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getEmitter, getBookId } from "../utils";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
+import { withRetry } from "../../../utils/retry";
 
 const EditorOutputSchema = z.object({
   approved: z.boolean().describe("Whether the draft meets quality standards"),
@@ -54,10 +55,26 @@ export async function editorNode(
     };
   }
 
-  const previous_summaries =
-    book_context.generation_settings?.chapter_summaries
-      ?.map((s) => `Chapter ${s.chapter}: ${s.summary}`)
-      .join("\n") ?? "No previous chapters yet";
+  const summaries = book_context.generation_settings?.chapter_summaries ?? [];
+
+  const previous_summaries = summaries.length > 0
+    ? summaries.map((s) => `Chapter ${s.chapter}: ${s.summary}`).join("\n")
+    : "No previous chapters yet";
+
+  const emotionalArcHistory = summaries
+    .filter((s) => s.emotional_arc)
+    .map((s) => `Chapter ${s.chapter}: ${s.emotional_arc}`)
+    .join("\n") || "No emotional arc history yet";
+
+  const advancedHooks = new Set(
+    summaries.flatMap((s) =>
+      (s.hook_status ?? []).filter((h) => h.status === "advanced").map((h) => h.hook)
+    )
+  );
+  const openHooks = summaries
+    .flatMap((s) => s.new_hooks ?? [])
+    .filter((h) => h && !advancedHooks.has(h))
+    .join("\n- ") || "none";
 
   emitter?.emit("progress", {
     stage: "editor",
@@ -69,6 +86,10 @@ export async function editorNode(
 WRITING STYLE EXPECTED: ${book_context.writing_style}
 CHAPTER PLAN (what should happen): ${plan}
 PREVIOUS CHAPTERS SUMMARIES: ${previous_summaries}
+EMOTIONAL ARC HISTORY (use for criterion 8):
+${emotionalArcHistory}
+OPEN STORY HOOKS (check if draft advances at least one):
+${openHooks === "none" ? "none" : `- ${openHooks}`}
 
 DRAFT TO EVALUATE:
 ${draft}
@@ -146,7 +167,9 @@ Fix:
     chapterNumber: chapter_number,
     model: "claude-haiku-4-5",
   });
-  const result = await editorLlm.invoke(prompt, { callbacks: [editorCallback] });
+  const result = await withRetry(() => editorLlm.invoke(prompt, { callbacks: [editorCallback] }), {
+    onRetry: (attempt, err) => console.warn(`[editor] retry ${attempt} after error: ${err}`),
+  });
 
   if (result.approved) {
     console.log(`[editor] attempt=${write_attempts} approved`);
@@ -185,7 +208,13 @@ ${draftsText}
 
 Respond with only the number of the best draft (1, 2, or 3). Nothing else.`;
 
-  const result = await pickerLlm.invoke(prompt, { callbacks: callback ? [callback] : [] });
+  const result = await withRetry(
+    () => pickerLlm.invoke(prompt, { callbacks: callback ? [callback] : [] }),
+    {
+      onRetry: (attempt, err) =>
+        console.warn(`[editor/picker] retry ${attempt} after error: ${err}`),
+    }
+  );
   const index = result.best_draft_index - 1;
   return drafts[index] ?? drafts[drafts.length - 1] ?? "";
 }
