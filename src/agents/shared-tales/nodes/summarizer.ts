@@ -1,10 +1,13 @@
 import { ChapterState } from "../state";
-import { extractText, getBookId, getChapterId, getEmitter } from "../utils";
+import { getBookId, getChapterId, getEmitter } from "../utils";
 import { llm } from "../llm";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { CostLoggingCallback } from "../costLogger";
 import { withRetry } from "../../../utils/retry";
 import * as repo from "../../../repositories";
+import { SummaryOutputSchema } from "../schemas";
+
+const summarizerLlm = llm.withStructuredOutput(SummaryOutputSchema);
 
 export async function summarizerNode(
   state: typeof ChapterState.State,
@@ -31,6 +34,11 @@ export async function summarizerNode(
     message: "Summarizing chapter....",
   });
 
+  const openHooksContext = book_context.generation_settings?.chapter_summaries
+    ?.flatMap((s) => s.new_hooks ?? [])
+    .filter(Boolean)
+    .join(", ");
+
   const prompt = `You are a precise and conservative story summarizer.
 
 CHAPTER ${chapter_number}:
@@ -39,70 +47,46 @@ ${draft}
 Your job is to summarize ONLY what is explicitly established in the text.
 Do NOT interpret, expand, or infer beyond what is clearly shown.
 
-LENGTH:
+RULES FOR summary field:
 - 3–5 sentences maximum, one short paragraph
-
-CONTENT — include only:
-- key plot events
-- important character actions
-- emotional shifts (only if clearly shown in the text)
-- information explicitly confirmed in the chapter
-
-STRICT RULES:
+- Include only: key plot events, important character actions, emotional shifts clearly shown
 - Do NOT infer hidden meanings or intentions
-- Do NOT upgrade ambiguity into certainty
-  (if something is implied or suspected, keep it uncertain in the summary)
-- Do NOT reveal more than the chapter explicitly confirms
-- If something is unclear in the text, keep it unclear in the summary
+- Do NOT upgrade ambiguity into certainty — use "seems", "appears", "is unclear", "may indicate"
+- Write in ${book_context.language}
 
-UNCERTAINTY HANDLING:
-- Reflect ambiguity using phrases like: "seems", "appears", "is unclear", "may indicate"
+RULES FOR emotional_arc field:
+- One sentence: what did the POV character attempt, and how did it end emotionally?
 
-Write in ${book_context.language}. Do not add commentary.
+RULES FOR secondary_characters field:
+- For each named character who appeared: their name and what they visibly wanted in this chapter
+- Only include characters who actually appear in this chapter
 
-Summary:
+RULES FOR core_state field:
+- 3-5 active story threads that remain genuinely unresolved after this chapter
+- Neutral, factual language — no interpretation or inference
 
-After the summary, add exactly these three lines:
+RULES FOR hook_status field:
+- Check these open questions from previous chapters: ${openHooksContext || "none"}
+- For each one touched in this chapter, report its status
+- Leave the array empty if none were touched
 
-EMOTIONAL ARC: <what the POV character attempted and how it ended emotionally — one sentence>
-
-SECONDARY CHARACTERS: <for each named character who appeared: name + what they visibly wanted in this chapter>
-
-CORE STATE: <list of active unresolved story engines, max 3–5 items — only what remains genuinely open after this chapter, using neutral language without interpretation>
-
-HOOK STATUS: <for each item in REMAINS UNKNOWN from previous chapters — 
-  state whether it was advanced, partially revealed, or still open in this chapter.
-  Format: "hook name: status". 
-  Only include hooks that were touched in this chapter.
-  If none were touched, write "none advanced">
-
-NEW HOOKS: <list any new unresolved questions or plot threads 
-  introduced in this chapter that did not exist before.
-  If none, write "none">
-`;
+RULES FOR new_hooks field:
+- List new unresolved questions introduced in this chapter that did not exist before
+- Leave the array empty if none`;
 
   const costCallback = new CostLoggingCallback({
     agentNode: "summarizer",
     bookId,
     chapterNumber: chapter_number,
-    model: "claude-haiku-4-5",
+    model: "claude-sonnet-4-5",
   });
-  const response = await withRetry(() => llm.invoke(prompt, { callbacks: [costCallback] }), {
-    onRetry: (attempt, err) => console.warn(`[summarizer] retry ${attempt} after error: ${err}`),
-  });
-  const fullOutput = extractText(response);
 
-  const newHooksMatch = fullOutput.match(/NEW HOOKS:\s*([\s\S]+?)(?:\n\n|$)/);
-  const newHooksRaw = newHooksMatch?.[1]?.trim() ?? "none";
-  const newHooks =
-    newHooksRaw === "none"
-      ? []
-      : newHooksRaw
-          .split("\n")
-          .map((h) => h.replace(/^[-*•]\s*/, "").trim())
-          .filter(Boolean);
+  const result = await withRetry(
+    () => summarizerLlm.invoke(prompt, { callbacks: [costCallback] }),
+    { onRetry: (attempt, err) => console.warn(`[summarizer] retry ${attempt} after error: ${err}`) }
+  );
 
-  const summary = fullOutput.split(/\nEMOTIONAL ARC:/)[0]?.trim() ?? "";
+  console.log(`[summarizer] structured output received, summary=${result.summary.length} chars`);
 
   if (bookId && chapterId) {
     await repo.updateChapter(chapterId, bookId, {
@@ -111,19 +95,24 @@ NEW HOOKS: <list any new unresolved questions or plot threads
     });
     await repo.appendChapterSummary(bookId, {
       chapter: chapter_number,
-      summary,
-      new_hooks: newHooks,
+      summary: result.summary,
+      new_hooks: result.new_hooks,
+      emotional_arc: result.emotional_arc || undefined,
+      core_state: result.core_state.length > 0 ? result.core_state : undefined,
+      secondary_characters:
+        result.secondary_characters.length > 0 ? result.secondary_characters : undefined,
+      hook_status: result.hook_status.length > 0 ? result.hook_status : undefined,
     });
 
     console.log(`[summarizer] saved chapter=${chapterId} to DB`);
   }
 
   emitter?.emit("done", {
-    summary,
+    summary: result.summary,
     content: draft,
   });
 
   return {
-    chapter_summary: summary,
+    chapter_summary: result.summary,
   };
 }

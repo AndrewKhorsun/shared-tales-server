@@ -74,11 +74,21 @@ export interface GenerationSettingsCharacter {
   traits: string[];
 }
 
+export interface ChapterSummaryRecord {
+  chapter: number;
+  summary: string;
+  new_hooks: string[];
+  emotional_arc?: string;
+  core_state?: string[];
+  secondary_characters?: { name: string; visible_want: string }[];
+  hook_status?: { hook: string; status: "advanced" | "partially_revealed" | "still_open"; note: string }[];
+}
+
 export interface GenerationSettings {
   characters: GenerationSettingsCharacter[];
   setting: { world: string; atmosphere: string };
   plot_arc: { premise: string; conflict: string; resolution: string };
-  chapter_summaries: { chapter: number; summary: string; new_hooks: string[] }[];
+  chapter_summaries: ChapterSummaryRecord[];
 }
 
 export interface BookPlan {

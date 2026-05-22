@@ -36,17 +36,28 @@ export async function plannerNode(
   const { genre, target_audience, writing_style, generation_settings, language, total_chapters } =
     book_context;
 
-  const previousChapters =
-    generation_settings?.chapter_summaries
-      ?.slice(-5)
-      .map((s) => `Chapter ${s.chapter}: ${s.summary}`)
-      .join("\n") ?? "No previous chapters yet";
+  const summaries = generation_settings?.chapter_summaries ?? [];
 
-  const openHooks =
-    generation_settings?.chapter_summaries
-      ?.flatMap((s) => s.new_hooks ?? [])
-      .filter(Boolean)
-      .join(", ") ?? "No open hooks yet";
+  const previousChapters = summaries.length > 0
+    ? summaries.slice(-5).map((s) => {
+        const lines = [`Chapter ${s.chapter}: ${s.summary}`];
+        if (s.emotional_arc) lines.push(`  Emotional arc: ${s.emotional_arc}`);
+        if (s.core_state?.length) lines.push(`  Active story threads: ${s.core_state.join("; ")}`);
+        return lines.join("\n");
+      }).join("\n\n")
+    : "No previous chapters yet";
+
+  const advancedHooks = new Set(
+    summaries.flatMap((s) =>
+      (s.hook_status ?? [])
+        .filter((h) => h.status === "advanced")
+        .map((h) => h.hook)
+    )
+  );
+  const openHooks = summaries
+    .flatMap((s) => s.new_hooks ?? [])
+    .filter((h) => h && !advancedHooks.has(h))
+    .join(", ") || "No open hooks yet";
 
   const characters =
     generation_settings?.characters

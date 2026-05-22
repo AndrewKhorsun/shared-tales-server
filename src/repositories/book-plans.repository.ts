@@ -60,6 +60,10 @@ export interface ChapterSummaryEntry {
   chapter: number;
   summary: string;
   new_hooks?: string[];
+  emotional_arc?: string;
+  core_state?: string[];
+  secondary_characters?: { name: string; visible_want: string }[];
+  hook_status?: { hook: string; status: "advanced" | "partially_revealed" | "still_open"; note: string }[];
 }
 
 export async function appendChapterSummary(

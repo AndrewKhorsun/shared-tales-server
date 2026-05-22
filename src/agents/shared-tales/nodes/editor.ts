@@ -55,10 +55,26 @@ export async function editorNode(
     };
   }
 
-  const previous_summaries =
-    book_context.generation_settings?.chapter_summaries
-      ?.map((s) => `Chapter ${s.chapter}: ${s.summary}`)
-      .join("\n") ?? "No previous chapters yet";
+  const summaries = book_context.generation_settings?.chapter_summaries ?? [];
+
+  const previous_summaries = summaries.length > 0
+    ? summaries.map((s) => `Chapter ${s.chapter}: ${s.summary}`).join("\n")
+    : "No previous chapters yet";
+
+  const emotionalArcHistory = summaries
+    .filter((s) => s.emotional_arc)
+    .map((s) => `Chapter ${s.chapter}: ${s.emotional_arc}`)
+    .join("\n") || "No emotional arc history yet";
+
+  const advancedHooks = new Set(
+    summaries.flatMap((s) =>
+      (s.hook_status ?? []).filter((h) => h.status === "advanced").map((h) => h.hook)
+    )
+  );
+  const openHooks = summaries
+    .flatMap((s) => s.new_hooks ?? [])
+    .filter((h) => h && !advancedHooks.has(h))
+    .join("\n- ") || "none";
 
   emitter?.emit("progress", {
     stage: "editor",
@@ -70,6 +86,10 @@ export async function editorNode(
 WRITING STYLE EXPECTED: ${book_context.writing_style}
 CHAPTER PLAN (what should happen): ${plan}
 PREVIOUS CHAPTERS SUMMARIES: ${previous_summaries}
+EMOTIONAL ARC HISTORY (use for criterion 8):
+${emotionalArcHistory}
+OPEN STORY HOOKS (check if draft advances at least one):
+${openHooks === "none" ? "none" : `- ${openHooks}`}
 
 DRAFT TO EVALUATE:
 ${draft}
