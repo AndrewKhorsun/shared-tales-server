@@ -40,11 +40,31 @@ export interface Book {
 }
 
 export type BookLanguage =
-  | "english" | "ukrainian" | "spanish" | "french" | "german"
-  | "italian" | "portuguese" | "polish" | "dutch" | "czech"
-  | "swedish" | "norwegian" | "danish" | "finnish" | "turkish"
-  | "japanese" | "korean" | "chinese" | "arabic" | "hindi"
-  | "indonesian" | "vietnamese" | "thai" | "romanian" | "hungarian"
+  | "english"
+  | "ukrainian"
+  | "spanish"
+  | "french"
+  | "german"
+  | "italian"
+  | "portuguese"
+  | "polish"
+  | "dutch"
+  | "czech"
+  | "swedish"
+  | "norwegian"
+  | "danish"
+  | "finnish"
+  | "turkish"
+  | "japanese"
+  | "korean"
+  | "chinese"
+  | "arabic"
+  | "hindi"
+  | "indonesian"
+  | "vietnamese"
+  | "thai"
+  | "romanian"
+  | "hungarian"
   | "greek";
 
 export interface GenerationSettingsCharacter {
@@ -58,7 +78,7 @@ export interface GenerationSettings {
   characters: GenerationSettingsCharacter[];
   setting: { world: string; atmosphere: string };
   plot_arc: { premise: string; conflict: string; resolution: string };
-  chapter_summaries: { chapter: number; summary: string }[];
+  chapter_summaries: { chapter: number; summary: string; new_hooks: string[] }[];
 }
 
 export interface BookPlan {
@@ -69,6 +89,7 @@ export interface BookPlan {
   writing_style: string;
   generation_settings: GenerationSettings;
   language: BookLanguage;
+  total_chapters?: number;
   created_at: Date;
   updated_at: Date;
 }

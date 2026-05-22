@@ -23,6 +23,7 @@ const generationSettingsSchema = z.object({
       z.object({
         chapter: z.number().int().positive(),
         summary: z.string().min(1),
+        new_hooks: z.array(z.string()).default([]),
       })
     )
     .default([]),
@@ -67,10 +68,15 @@ export const createBookPlanSchema = z.object({
     "greek",
   ]),
   generation_settings: generationSettingsSchema.optional(),
+  total_chapters: z.number().int().min(1).max(100).optional(),
 });
 
 export const updateBookPlanSchema = createBookPlanSchema.partial();
 
 export type CreateBookPlanDto = z.infer<typeof createBookPlanSchema>;
 export type UpdateBookPlanDto = z.infer<typeof updateBookPlanSchema>;
-export type { GenerationSettings, BookLanguage, GenerationSettingsCharacter as Character } from "../../types";
+export type {
+  GenerationSettings,
+  BookLanguage,
+  GenerationSettingsCharacter as Character,
+} from "../../types";

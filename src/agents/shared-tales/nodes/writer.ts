@@ -83,7 +83,7 @@ REQUIREMENTS:
 - Stay consistent with character personalities and traits
 - Match the writing style exactly
 - Write in ${language}
-- Target length: 800–2500 words — never go below 800 words
+- Target length: 1500–2500 words — never go below 1500 words
 - No chapter title, just the text
 
 CHARACTER DEPTH:
@@ -112,12 +112,18 @@ MYSTERY & REVELATION:
 - Prefer showing consequences over stating causes
 - Leave at least one meaningful question unanswered by the end
 
-AI / ANTAGONIST DIALOGUE:
-- Must NOT explicitly name or describe itself
-  (forbidden: "I am the system", "I am the city", "I control you")
-- Must speak indirectly, ambiguously, or manipulatively
-- May imply awareness but must never confirm the full scope of its control
-- Its words should increase the reader's uncertainty, not resolve it
+ANTAGONIST & OPPOSITION DIALOGUE:
+- Antagonists should not reveal their full motivation or plan in a single scene
+- Their dialogue should create tension or uncertainty, not resolve it
+- Adapt to genre: thriller antagonists speak indirectly, 
+  fantasy villains may be direct but incomplete,
+  sci-fi systems speak functionally without emotional intent
+
+ENDING CONSTRAINT:
+- The final scene must end on one image, action, or line of dialogue.
+- Do not summarize the character's uncertainty after the final image.
+- If the character doesn't know what to do — show it through 
+  what they do with their body, not through listing options.
 
 PLAN CONSTRAINTS:
 - The plan ends with a "SCENE FORBIDDEN" line — extract it and treat it as a hard rule

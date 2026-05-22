@@ -14,7 +14,8 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
   const chapter = await repo.findChapterByIdAndBookId(chapterId, bookId);
   if (!chapter) throw new AppError(404, "Chapter not found");
 
-  const { genre, target_audience, writing_style, language, generation_settings } = bookPlan;
+  const { genre, target_audience, writing_style, language, generation_settings, total_chapters } =
+    bookPlan;
 
   const validation = createBookPlanSchema.safeParse({
     genre,
@@ -37,6 +38,7 @@ export async function runChapterGeneration(bookId: number, chapterId: number, hi
     writing_style,
     language,
     generation_settings,
+    total_chapters,
   };
 
   const threadId = `book-${bookId}-chapter-${chapterId}`;

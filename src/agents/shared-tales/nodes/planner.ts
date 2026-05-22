@@ -28,12 +28,20 @@ export async function plannerNode(
     message: "Generating chapter plan...",
   });
 
-  const { genre, target_audience, writing_style, generation_settings, language } = book_context;
+  const { genre, target_audience, writing_style, generation_settings, language, total_chapters } =
+    book_context;
 
   const previousChapters =
     generation_settings?.chapter_summaries
-      ?.map((s) => `Chapter ${s.chapter}: ${s.summary}`)
+      ?.slice(-5)
+      .map((s) => `Chapter ${s.chapter}: ${s.summary}`)
       .join("\n") ?? "No previous chapters yet";
+
+  const openHooks =
+    generation_settings?.chapter_summaries
+      ?.flatMap((s) => s.new_hooks ?? [])
+      .filter(Boolean)
+      .join(", ") ?? "No open hooks yet";
 
   const characters =
     generation_settings?.characters
@@ -60,7 +68,75 @@ export async function plannerNode(
     ? `Resolution direction: ${generation_settings.plot_arc.resolution}`
     : "Resolution direction: Not specified — determine a suitable resolution direction based on the plot.";
 
+  const bookProgress = total_chapters
+    ? `BOOK PROGRESS: Chapter ${chapter_number} of ${total_chapters} ` +
+      `(${Math.round((chapter_number / total_chapters) * 100)}%)`
+    : null;
+
+  const isFinalChapter =
+    total_chapters !== null && total_chapters !== undefined && chapter_number === total_chapters;
+
+  const pct = total_chapters ? Math.round((chapter_number / total_chapters) * 100) : 0;
+
+  const narrativeStageRules = total_chapters
+    ? `NARRATIVE STAGE RULES:
+Current position: chapter ${chapter_number} of ${total_chapters} (${pct}%)
+
+${
+  pct <= 25
+    ? `STAGE: OPENING
+- Introduce the world through the protagonist's normal routine
+- Plant the central question without answering it
+- End with the first disruption that cannot be ignored
+- Character action level: observing, noticing, reacting`
+    : ""
+}
+
+${
+  pct > 25 && pct <= 60
+    ? `STAGE: DEVELOPMENT
+- The protagonist must attempt something — not just observe
+- Each chapter must cost the protagonist something small but real
+- Secondary characters must push back or complicate, not just inform
+- Character action level: attempting, failing, adjusting`
+    : ""
+}
+
+${
+  pct > 60 && pct <= 85
+    ? `STAGE: TURNING POINT
+- The protagonist must make a choice that changes their situation irreversibly
+- At least one major open question must be partially answered — not hinted, answered
+- The world must visibly shift as a result of the protagonist's action
+- Character action level: deciding, acting, facing consequences`
+    : ""
+}
+
+${
+  pct > 85 && !isFinalChapter
+    ? `STAGE: RESOLUTION APPROACH
+- All major story threads must begin converging
+- The protagonist's core belief about the world must be tested directly
+- Introduce no new hooks — only close existing ones
+- Character action level: confronting, choosing, accepting cost`
+    : ""
+}
+
+${
+  isFinalChapter
+    ? `STAGE: FINAL CHAPTER
+- Every open question in REMAINS UNKNOWN must be resolved or deliberately left open with intention
+- The protagonist's journey must reach an emotional endpoint — not necessarily happy, but complete
+- Introduce zero new hooks
+- The last image or action must carry the weight of the entire story
+- Character action level: completing, accepting, or failing with full awareness`
+    : ""
+}`
+    : null;
   const prompt = `You are a creative writing planner. Create a detailed chapter plan.
+IMPORTANT: Write the entire plan in ${language}.
+All scene descriptions, character notes, and every line of output must be in ${language}.
+
 
 BOOK CONTEXT:
 Genre: ${genre}
@@ -82,7 +158,12 @@ ${characters}
 PREVIOUS CHAPTERS:
 ${previousChapters}
 
+OPEN STORY HOOKS (must be tracked, some must advance this chapter):
+${openHooks}
+
 CURRENT CHAPTER: ${chapter_number}
+${bookProgress ?? ""}
+${narrativeStageRules ?? ""}
 ${chapter_plan_hint ? `AUTHOR'S HINT: ${chapter_plan_hint}` : ""}
 ${user_feedback ? `REVISION FEEDBACK: ${user_feedback}` : ""}
 
@@ -90,7 +171,6 @@ Create a detailed plan for chapter ${chapter_number}. The plan must:
 - Follow naturally from previous chapters
 - Advance the main conflict
 - Include specific scenes and character interactions
-- Write in ${language}
 - Leave at least one story question open at the end of the chapter
 
 SCENE DESIGN:
@@ -132,21 +212,16 @@ WORLD PRESSURE:
   but must be concrete enough to affect the next chapter.
 
 INFORMATION CONTROL RULES:
-${
-  chapter_number <= 3
-    ? "- This is an early chapter: do NOT explain the nature of the central system or antagonist"
-    : "- Limit major revelations — do not resolve more than one core mystery per chapter"
-}
-- Each chapter may confirm at most ONE major suspicion — decide in advance which one
-- Prefer partial understanding, conflicting interpretations, or uncertainty over clear answers
+- Each chapter may confirm at most ONE major story development — decide in advance which one
+- Pace revelations according to genre conventions: 
+  mysteries and thrillers prefer ambiguity, 
+  action and fantasy may reveal more directly,
+  literary fiction prefers implication over statement
 - If the author's hint signals a finale or climax, these limits may be relaxed
 
 SCENE CONSTRAINT:
-- Scenes must NOT explicitly confirm anything outside the defined "CONFIRMED THIS CHAPTER"
-- If a scene risks accidentally revealing more, rewrite it to imply, not confirm
-
-EDITOR_REQUIRED: true/false
-REASON: <revelation / turning point / regular chapter>
+- Scenes must NOT confirm anything outside the defined "CONFIRMED THIS CHAPTER"
+- If a scene risks revealing more than intended, imply rather than state
 
 CRITICAL: Your response is incomplete without these exact three lines at the end.
 Do not finish the plan without them.
@@ -156,11 +231,10 @@ CONFIRMED THIS CHAPTER: <one specific development>
 REMAINS UNKNOWN: <comma-separated list of open questions>
 SCENE FORBIDDEN: <what the writer must NOT confirm or state in any scene>
 
-CRITICAL: Do not truncate the plan. 
-The final three lines are mandatory. 
-If you are running low on space, 
-shorten scene descriptions — 
-but never omit CONFIRMED/REMAINS UNKNOWN/SCENE FORBIDDEN.
+CRITICAL: Do not truncate the plan.
+All three lines (CONFIRMED THIS CHAPTER, REMAINS UNKNOWN, SCENE FORBIDDEN) are mandatory.
+If you are running low on space, shorten scene descriptions —
+but never omit these three lines.
 
 Respond with the plan only, no additional commentary.`;
 
