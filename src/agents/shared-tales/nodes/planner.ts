@@ -28,9 +28,8 @@ export async function plannerNode(
     message: "Generating chapter plan...",
   });
 
-  const {
-    genre, target_audience, writing_style, generation_settings, language, total_chapters,
-  } = book_context;
+  const { genre, target_audience, writing_style, generation_settings, language, total_chapters } =
+    book_context;
 
   const previousChapters =
     generation_settings?.chapter_summaries
@@ -77,16 +76,67 @@ export async function plannerNode(
   const isFinalChapter =
     total_chapters !== null && total_chapters !== undefined && chapter_number === total_chapters;
 
-  const narrativeStageRules = total_chapters
-    ? `NARRATIVE STAGE RULES (based on current progress):
-- 0–25%: establish world, characters, central conflict — no major revelations yet
-- 25–60%: escalate conflict, deepen character relationships, advance open hooks
-- 60–85%: major revelations, turning points, converge open threads
-- 85–100%: resolve main conflict, close all major hooks, emotional closure
-${isFinalChapter ? "- THIS IS THE FINAL CHAPTER: all REMAINS UNKNOWN must be resolved, introduce no new hooks" : ""}`
-    : null;
+  const pct = total_chapters ? Math.round((chapter_number / total_chapters) * 100) : 0;
 
+  const narrativeStageRules = total_chapters
+    ? `NARRATIVE STAGE RULES:
+Current position: chapter ${chapter_number} of ${total_chapters} (${pct}%)
+
+${
+  pct <= 25
+    ? `STAGE: OPENING
+- Introduce the world through the protagonist's normal routine
+- Plant the central question without answering it
+- End with the first disruption that cannot be ignored
+- Character action level: observing, noticing, reacting`
+    : ""
+}
+
+${
+  pct > 25 && pct <= 60
+    ? `STAGE: DEVELOPMENT
+- The protagonist must attempt something — not just observe
+- Each chapter must cost the protagonist something small but real
+- Secondary characters must push back or complicate, not just inform
+- Character action level: attempting, failing, adjusting`
+    : ""
+}
+
+${
+  pct > 60 && pct <= 85
+    ? `STAGE: TURNING POINT
+- The protagonist must make a choice that changes their situation irreversibly
+- At least one major open question must be partially answered — not hinted, answered
+- The world must visibly shift as a result of the protagonist's action
+- Character action level: deciding, acting, facing consequences`
+    : ""
+}
+
+${
+  pct > 85 && !isFinalChapter
+    ? `STAGE: RESOLUTION APPROACH
+- All major story threads must begin converging
+- The protagonist's core belief about the world must be tested directly
+- Introduce no new hooks — only close existing ones
+- Character action level: confronting, choosing, accepting cost`
+    : ""
+}
+
+${
+  isFinalChapter
+    ? `STAGE: FINAL CHAPTER
+- Every open question in REMAINS UNKNOWN must be resolved or deliberately left open with intention
+- The protagonist's journey must reach an emotional endpoint — not necessarily happy, but complete
+- Introduce zero new hooks
+- The last image or action must carry the weight of the entire story
+- Character action level: completing, accepting, or failing with full awareness`
+    : ""
+}`
+    : null;
   const prompt = `You are a creative writing planner. Create a detailed chapter plan.
+IMPORTANT: Write the entire plan in ${language}.
+All scene descriptions, character notes, and every line of output must be in ${language}.
+
 
 BOOK CONTEXT:
 Genre: ${genre}
@@ -121,7 +171,6 @@ Create a detailed plan for chapter ${chapter_number}. The plan must:
 - Follow naturally from previous chapters
 - Advance the main conflict
 - Include specific scenes and character interactions
-- Write in ${language}
 - Leave at least one story question open at the end of the chapter
 
 SCENE DESIGN:
