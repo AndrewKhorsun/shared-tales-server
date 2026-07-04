@@ -52,7 +52,7 @@ export const createBookPlanSchema = z.object({
   writing_style: z
     .string()
     .min(1, "Writing style is required")
-    .max(150, "Writing style is too long"),
+    .max(300, "Writing style is too long"),
   language: z.enum([
     "english",
     "ukrainian",
@@ -82,7 +82,7 @@ export const createBookPlanSchema = z.object({
     "greek",
   ]),
   generation_settings: generationSettingsSchema.optional(),
-  total_chapters: z.number().int().min(1).max(100).optional(),
+  total_chapters: z.number().int().min(1).max(50).optional(),
 });
 
 export const updateBookPlanSchema = createBookPlanSchema.partial();
